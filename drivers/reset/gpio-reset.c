@@ -123,6 +123,11 @@ static int gpio_reset_probe(struct platform_device *pdev)
 	if (ret < 0)
 		drvdata->post_delay_ms = -1;
 
+	if (!initially_in_reset) {
+		if (of_property_read_bool(np, "reset-on-init"))
+			gpio_reset(&drvdata->rcdev, 0);
+	}
+
 	platform_set_drvdata(pdev, drvdata);
 
 	drvdata->rcdev.of_node = np;
