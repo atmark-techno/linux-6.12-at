@@ -1163,7 +1163,7 @@ static int mxc_isi_cap_streamon(struct file *file, void *priv,
 	if (!isi_cap->is_streaming[isi_cap->id]) {
 		src_sd = mxc_get_remote_subdev(&isi_cap->sd, __func__);
 		ret = (!src_sd) ? -EINVAL : v4l2_subdev_call(src_sd, core, s_power, 1);
-		if (ret) {
+		if (ret && ret != -ENOIOCTLCMD) {
 			v4l2_err(&isi_cap->sd, "Call subdev s_power fail!\n");
 			return ret;
 		}
