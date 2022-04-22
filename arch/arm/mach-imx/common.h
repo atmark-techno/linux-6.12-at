@@ -119,6 +119,7 @@ unsigned int imx_gpc_is_mf_mix_off(void);
 void imx_anatop_init(void);
 void imx_anatop_pre_suspend(void);
 void imx_anatop_post_resume(void);
+void imx_anatop_3p0_vbus_sel(bool id);
 int imx6_set_lpm(enum mxc_cpu_pwr_mode mode);
 void imx6_set_int_mem_clk_lpm(bool enable);
 void imx6_enet_mac_init(const char *enet_compat, const char *ocotp_compat);
