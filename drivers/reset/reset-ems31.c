@@ -59,8 +59,9 @@ static void ems31_reset_power_off(struct ems31_reset_data *drvdata)
 		/* already powered off */
 		return;
 
-	msleep(EMS31_BATTPLUS_OFF_WAIT_TIME_MS);
 	gpiod_set_value_cansleep(drvdata->pwr, 0);
+	/* wait batt+ under 0.3V */
+	msleep(EMS31_BATTPLUS_OFF_WAIT_TIME_MS);
 }
 
 static int ems31_reset_reset(struct reset_controller_dev *rcdev,
