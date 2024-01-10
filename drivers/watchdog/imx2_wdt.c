@@ -335,10 +335,12 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * The i.MX7D doesn't support low power mode, so we need to ping the watchdog
-	 * during suspend. Interaction with "fsl,suspend-in-wait" is unknown!
+	 * The i.MX7D and i.MX6UL doesn't support low power mode, so
+	 * we need to ping the watchdog during suspend. Interaction
+	 * with "fsl,suspend-in-wait" is unknown!
 	 */
-	wdev->no_ping = !of_device_is_compatible(dev->of_node, "fsl,imx7d-wdt");
+	wdev->no_ping = !of_device_is_compatible(dev->of_node, "fsl,imx7d-wdt") &&
+			!of_device_is_compatible(dev->of_node, "fsl,imx6ul-wdt");
 	platform_set_drvdata(pdev, wdog);
 	watchdog_set_drvdata(wdog, wdev);
 	watchdog_set_nowayout(wdog, nowayout);
