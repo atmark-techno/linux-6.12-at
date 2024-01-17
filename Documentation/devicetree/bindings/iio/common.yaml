@@ -19,6 +19,11 @@ description: |
   document are defined as follows. The sensor tree bindings are responsible for
   defining whether each property is required or optional.
 
+  Note: it is also possible to request an index for the iio device through the
+  "aliases" device tree node. It is however only used as a hint so care should
+  be taken to either set all devices, or set indices in a range that will not
+  be used by devices without aliases.
+
 properties:
   proximity-near-level:
     $ref: /schemas/types.yaml#/definitions/uint32

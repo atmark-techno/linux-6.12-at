@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/poll.h>
 #include <linux/property.h>
 #include <linux/sched.h>
@@ -1652,6 +1653,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	struct iio_dev_opaque *iio_dev_opaque;
 	struct iio_dev *indio_dev;
 	size_t alloc_size;
+	int iio_dev_id;
 
 	if (sizeof_priv)
 		alloc_size = ALIGN(sizeof(*iio_dev_opaque), IIO_DMA_MINALIGN) + sizeof_priv;
@@ -1676,7 +1678,10 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	mutex_init(&iio_dev_opaque->info_exist_lock);
 	INIT_LIST_HEAD(&iio_dev_opaque->channel_attr_list);
 
-	iio_dev_opaque->id = ida_alloc(&iio_ida, GFP_KERNEL);
+	iio_dev_id = of_alias_get_id(parent->of_node, "iio");
+	iio_dev_opaque->id = ida_alloc_range(&iio_ida,
+					     iio_dev_id < 0 ? 0 : iio_dev_id,
+					     ~0, GFP_KERNEL);
 	if (iio_dev_opaque->id < 0) {
 		/* cannot use a dev_err as the name isn't available */
 		pr_err("failed to get device id\n");
@@ -1688,6 +1693,16 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 		ida_free(&iio_ida, iio_dev_opaque->id);
 		kfree(iio_dev_opaque);
 		return NULL;
+	}
+
+	/* log about iio_dev_id after dev_set_name() for dev_* helpers */
+	if (iio_dev_id < 0) {
+		dev_dbg(&indio_dev->dev,
+			"No aliases in fw node for device: %d\n", iio_dev_id);
+	} else if (iio_dev_opaque->id != iio_dev_id) {
+		dev_warn(&indio_dev->dev,
+			 "Device requested %d in fw node but could not get it\n",
+			 iio_dev_id);
 	}
 
 	INIT_LIST_HEAD(&iio_dev_opaque->buffer_list);
