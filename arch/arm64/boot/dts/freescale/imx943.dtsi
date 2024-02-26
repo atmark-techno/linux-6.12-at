@@ -147,6 +147,18 @@
 	};
 
 	soc {
+		epxp: epxp@4b110000 {
+			compatible = "fsl,imx94-pxp-dma";
+			reg = <0x0 0x4b110000 0x0 0x10000>;
+			interrupts = <GIC_SPI 382 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 383 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX94_CLK_DISPAPB>,
+				 <&scmi_clk IMX94_CLK_DISPAXI>;
+			clock-names = "pxp_ipg", "pxp_axi";
+			power-domains = <&scmi_devpd IMX94_PD_DISPLAY>;
+			status = "disabled";
+		};
+
 		neutron_core: neutron-remoteproc@4ab00000 {
 			compatible = "fsl,imx95-neutron-rproc";
 			reg = <0x0 0x4ab00000 0x0 0x4>;
