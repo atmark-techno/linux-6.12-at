@@ -156,7 +156,7 @@ static const struct imx95_blk_ctl_dev_data camblk_dev_data = {
 	.clk_reg_offset = 0,
 };
 
-static const struct imx95_blk_ctl_clk_dev_data lvds_clk_dev_data[] = {
+static const struct imx95_blk_ctl_clk_dev_data imx95_lvds_clk_dev_data[] = {
 	[IMX95_CLK_DISPMIX_LVDS_PHY_DIV] = {
 		.name = "ldb_phy_div",
 		.parent_names = (const char *[]){ "ldbpll", },
@@ -213,13 +213,13 @@ static const struct imx95_blk_ctl_clk_dev_data lvds_clk_dev_data[] = {
 	},
 };
 
-static const struct imx95_blk_ctl_dev_data lvds_csr_dev_data = {
-	.num_clks = ARRAY_SIZE(lvds_clk_dev_data),
-	.clk_dev_data = lvds_clk_dev_data,
+static const struct imx95_blk_ctl_dev_data imx95_lvds_csr_dev_data = {
+	.num_clks = ARRAY_SIZE(imx95_lvds_clk_dev_data),
+	.clk_dev_data = imx95_lvds_clk_dev_data,
 	.clk_reg_offset = 0,
 };
 
-static const struct imx95_blk_ctl_clk_dev_data dispmix_csr_clk_dev_data[] = {
+static const struct imx95_blk_ctl_clk_dev_data imx95_dispmix_csr_clk_dev_data[] = {
 	[IMX95_CLK_DISPMIX_ENG0_SEL] = {
 		.name = "disp_engine0_sel",
 		.parent_names = (const char *[]){"videopll1", "dsi_pll", "ldb_pll_div7", },
@@ -242,9 +242,9 @@ static const struct imx95_blk_ctl_clk_dev_data dispmix_csr_clk_dev_data[] = {
 	}
 };
 
-static const struct imx95_blk_ctl_dev_data dispmix_csr_dev_data = {
-	.num_clks = ARRAY_SIZE(dispmix_csr_clk_dev_data),
-	.clk_dev_data = dispmix_csr_clk_dev_data,
+static const struct imx95_blk_ctl_dev_data imx95_dispmix_csr_dev_data = {
+	.num_clks = ARRAY_SIZE(imx95_dispmix_csr_clk_dev_data),
+	.clk_dev_data = imx95_dispmix_csr_clk_dev_data,
 	.clk_reg_offset = 0,
 };
 
@@ -463,8 +463,8 @@ static const struct dev_pm_ops imx95_bc_pm_ops = {
 static const struct of_device_id imx95_bc_of_match[] = {
 	{ .compatible = "nxp,imx95-camera-csr", .data = &camblk_dev_data },
 	{ .compatible = "nxp,imx95-display-master-csr", },
-	{ .compatible = "nxp,imx95-lvds-csr", .data = &lvds_csr_dev_data },
-	{ .compatible = "nxp,imx95-display-csr", .data = &dispmix_csr_dev_data },
+	{ .compatible = "nxp,imx95-lvds-csr", .data = &imx95_lvds_csr_dev_data },
+	{ .compatible = "nxp,imx95-display-csr", .data = &imx95_dispmix_csr_dev_data },
 	{ .compatible = "nxp,imx95-vpu-csr", .data = &vpublk_dev_data },
 	{ .compatible = "nxp,imx95-netcmix-blk-ctrl", .data = &netcmix_dev_data},
 	{ .compatible = "nxp,imx95-hsio-blk-ctl", .data = &hsio_blk_ctl_dev_data },
