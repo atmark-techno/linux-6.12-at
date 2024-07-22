@@ -550,6 +550,8 @@ dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk-pmic-pf0900-ld.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk-pmic-pf0900-rpmsg.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk-pmic-pf0900-rpmsg-lpv.dtb
 
+dtb-$(CONFIG_ARCH_MXC) += imx91-11x11-frdm.dtb
+
 dtb-$(CONFIG_ARCH_MXC) += imx93-9x9-qsb.dtb \
 			  imx93-9x9-qsb-can1.dtb \
 			  imx93-9x9-qsb-flexspi-m2.dtb \
