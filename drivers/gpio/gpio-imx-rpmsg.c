@@ -28,7 +28,6 @@
 #include <linux/virtio.h>
 #include <linux/workqueue.h>
 
-#define IMX_RPMSG_GPIO_PER_PORT	32
 #define RPMSG_TIMEOUT	1000
 #define IMX_RPMSG_GPIO_PORT_PER_SOC_MAX	10
 
@@ -81,8 +80,8 @@ struct imx_rpmsg_gpio_port {
 	struct gpio_chip gc;
 	struct irq_chip chip;
 	struct irq_domain *domain;
-	struct imx_rpmsg_gpio_pin gpio_pins[IMX_RPMSG_GPIO_PER_PORT];
 	int idx;
+	struct imx_rpmsg_gpio_pin gpio_pins[];
 };
 
 struct imx_gpio_rpmsg_info {
@@ -139,6 +138,13 @@ static int gpio_send_message(struct imx_rpmsg_gpio_port *port,
 			goto err_out;
 		}
 
+		if (info->reply_msg->pin_idx >= port->gc.ngpio) {
+			dev_err(&info->rpdev->dev, "acked index %d above max %d!\n",
+				info->reply_msg->pin_idx, port->gc.ngpio);
+			err = -EINVAL;
+			goto err_out;
+		}
+
 		/* copy the reply message */
 		memcpy(&port->gpio_pins[info->reply_msg->pin_idx].msg,
 		       info->reply_msg, sizeof(*info->reply_msg));
@@ -164,6 +170,10 @@ static int gpio_rpmsg_cb(struct rpmsg_device *rpdev,
 		complete(&gpio_rpmsg.cmd_complete);
 	} else if (msg->header.type == GPIO_RPMSG_NOTIFY) {
 		gpio_rpmsg.notify_msg = msg;
+		if (msg->port_idx >= IMX_RPMSG_GPIO_PORT_PER_SOC_MAX) {
+			dev_err(&gpio_rpmsg.rpdev->dev, "port_idx %d too large\n", msg->port_idx);
+			return 0;
+		}
 		local_irq_save(flags);
 		generic_handle_irq(irq_find_mapping(gpio_rpmsg.port_store[msg->port_idx]->domain, msg->pin_idx));
 		local_irq_restore(flags);
@@ -187,6 +197,12 @@ static int imx_rpmsg_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	struct imx_rpmsg_gpio_port *port = gpiochip_get_data(gc);
 	struct gpio_rpmsg_data *msg = NULL;
 	int ret;
+
+	if (gpio >= port->gc.ngpio) {
+		dev_err(&gpio_rpmsg.rpdev->dev, "index %d > max %d!\n",
+			gpio, port->gc.ngpio);
+		return -EINVAL;
+	}
 
 	mutex_lock(&gpio_rpmsg.lock);
 
@@ -214,6 +230,12 @@ static int imx_rpmsg_gpio_direction_input(struct gpio_chip *gc,
 	struct imx_rpmsg_gpio_port *port = gpiochip_get_data(gc);
 	struct gpio_rpmsg_data *msg = NULL;
 	int ret;
+
+	if (gpio >= port->gc.ngpio) {
+		dev_err(&gpio_rpmsg.rpdev->dev, "index %d > max %d!\n",
+			gpio, port->gc.ngpio);
+		return -EINVAL;
+	}
 
 	mutex_lock(&gpio_rpmsg.lock);
 
@@ -256,6 +278,12 @@ static void imx_rpmsg_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 	struct imx_rpmsg_gpio_port *port = gpiochip_get_data(gc);
 	struct gpio_rpmsg_data *msg = NULL;
 
+	if (gpio >= port->gc.ngpio) {
+		dev_err(&gpio_rpmsg.rpdev->dev, "index %d > max %d!\n",
+			gpio, port->gc.ngpio);
+		return;
+	}
+
 	mutex_lock(&gpio_rpmsg.lock);
 
 	msg = gpio_get_pin_msg(port, gpio);
@@ -271,6 +299,12 @@ static int imx_rpmsg_gpio_direction_output(struct gpio_chip *gc,
 	struct imx_rpmsg_gpio_port *port = gpiochip_get_data(gc);
 	struct gpio_rpmsg_data *msg = NULL;
 	int ret;
+
+	if (gpio >= port->gc.ngpio) {
+		dev_err(&gpio_rpmsg.rpdev->dev, "index %d > max %d!\n",
+			gpio, port->gc.ngpio);
+		return -EINVAL;
+	}
 
 	mutex_lock(&gpio_rpmsg.lock);
 
@@ -320,6 +354,12 @@ static int imx_rpmsg_irq_set_wake(struct irq_data *d, u32 enable)
 	struct imx_rpmsg_gpio_port *port = irq_data_get_irq_chip_data(d);
 	u32 gpio_idx = d->hwirq;
 
+	if (gpio_idx >= port->gc.ngpio) {
+		dev_err(&gpio_rpmsg.rpdev->dev, "index %d > max %d!\n",
+			gpio_idx, port->gc.ngpio);
+		return -EINVAL;
+	}
+
 	port->gpio_pins[gpio_idx].irq_wake_enable = enable;
 
 	return 0;
@@ -338,6 +378,12 @@ static void imx_rpmsg_unmask_irq(struct irq_data *d)
 	struct imx_rpmsg_gpio_port *port = irq_data_get_irq_chip_data(d);
 	u32 gpio_idx = d->hwirq;
 
+	if (gpio_idx >= port->gc.ngpio) {
+		dev_err(&gpio_rpmsg.rpdev->dev, "index %d > max %d!\n",
+			gpio_idx, port->gc.ngpio);
+		return;
+	}
+
 	port->gpio_pins[gpio_idx].irq_unmask = 1;
 }
 
@@ -345,6 +391,13 @@ static void imx_rpmsg_mask_irq(struct irq_data *d)
 {
 	struct imx_rpmsg_gpio_port *port = irq_data_get_irq_chip_data(d);
 	u32 gpio_idx = d->hwirq;
+
+	if (gpio_idx >= port->gc.ngpio) {
+		dev_err(&gpio_rpmsg.rpdev->dev, "index %d > max %d!\n",
+			gpio_idx, port->gc.ngpio);
+		return;
+	}
+
 	/*
 	 * No need to implement the callback at A core side.
 	 * M core will mask interrupt after a interrupt occurred, and then
@@ -359,6 +412,12 @@ static void imx_rpmsg_irq_shutdown(struct irq_data *d)
 {
 	struct imx_rpmsg_gpio_port *port = irq_data_get_irq_chip_data(d);
 	u32 gpio_idx = d->hwirq;
+
+	if (gpio_idx >= port->gc.ngpio) {
+		dev_err(&gpio_rpmsg.rpdev->dev, "index %d > max %d!\n",
+			gpio_idx, port->gc.ngpio);
+		return;
+	}
 
 	port->gpio_pins[gpio_idx].irq_shutdown = 1;
 }
@@ -376,6 +435,13 @@ static void imx_rpmsg_irq_bus_sync_unlock(struct irq_data *d)
 
 	if (port == NULL) {
 		mutex_unlock(&gpio_rpmsg.lock);
+		return;
+	}
+
+	if (gpio_idx >= port->gc.ngpio) {
+		mutex_unlock(&gpio_rpmsg.lock);
+		dev_err(&gpio_rpmsg.rpdev->dev, "index %d > max %d!\n",
+			gpio_idx, port->gc.ngpio);
 		return;
 	}
 
@@ -438,10 +504,17 @@ static int imx_rpmsg_gpio_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct imx_rpmsg_gpio_port *port;
 	struct gpio_chip *gc;
+	int ngpio;
 	int i, irq_base;
 	int ret;
 
-	port = devm_kzalloc(&pdev->dev, sizeof(*port), GFP_KERNEL);
+	ret = of_property_read_u32(np, "gpio-count", &ngpio);
+	if (ret) {
+		// fallback to historic value
+		ngpio = 32;
+	}
+
+	port = devm_kzalloc(&pdev->dev, sizeof(*port) + ngpio, GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
@@ -449,12 +522,17 @@ static int imx_rpmsg_gpio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	if (port->idx >= IMX_RPMSG_GPIO_PORT_PER_SOC_MAX) {
+		dev_err(&pdev->dev, "port_idx %d too large\n", port->idx);
+		return -EINVAL;
+	}
+
 	gpio_rpmsg.port_store[port->idx] = port;
 
 	gc = &port->gc;
 	gc->parent = dev;
 	gc->label = kasprintf(GFP_KERNEL, "imx-rpmsg-gpio-%d", port->idx);
-	gc->ngpio = IMX_RPMSG_GPIO_PER_PORT;
+	gc->ngpio = ngpio;
 	gc->base = -1;
 
 	gc->direction_input = imx_rpmsg_gpio_direction_input;
@@ -472,15 +550,15 @@ static int imx_rpmsg_gpio_probe(struct platform_device *pdev)
 	port->chip = imx_rpmsg_irq_chip;
 	port->chip.name = kasprintf(GFP_KERNEL, "rpmsg-irq-port-%d", port->idx);
 
-	irq_base = irq_alloc_descs(-1, 0, IMX_RPMSG_GPIO_PER_PORT,
-				   numa_node_id());
-	WARN_ON(irq_base < 0);
+	irq_base = irq_alloc_descs(-1, 0, ngpio, numa_node_id());
+	if (WARN_ON(irq_base < 0))
+		return irq_base;
 
-	port->domain = irq_domain_add_legacy(np, IMX_RPMSG_GPIO_PER_PORT,
-					     irq_base, 0,
+	port->domain = irq_domain_add_legacy(np, ngpio, irq_base, 0,
 					     &irq_domain_simple_ops, port);
-	WARN_ON(!port->domain);
-	for (i = irq_base; i < irq_base + IMX_RPMSG_GPIO_PER_PORT; i++) {
+	if (WARN_ON(!port->domain))
+		return -EINVAL;
+	for (i = irq_base; i < irq_base + ngpio; i++) {
 		irq_set_chip_and_handler(i, &port->chip, handle_level_irq);
 		irq_set_chip_data(i, port);
 		irq_clear_status_flags(i, IRQ_NOREQUEST);
