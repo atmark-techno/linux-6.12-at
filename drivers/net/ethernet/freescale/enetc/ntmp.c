@@ -34,6 +34,7 @@
 #define NTMP_SGCLT_ID			37
 #define NTMP_ISCT_ID			38
 #define NTMP_ECT_ID			39
+#define NTMP_FMT_ID			40
 
 /* Generic Update Actions for most tables */
 #define NTMP_GEN_UA_CFGEU		BIT(0)
@@ -2436,6 +2437,89 @@ end:
 	return err;
 }
 EXPORT_SYMBOL_GPL(ntmp_ect_query_entry);
+
+int ntmp_fmt_add_or_update_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+				 bool add, struct fmt_cfge_data *cfge)
+{
+	struct device *dev = cbdrs->dma_dev;
+	struct fmt_req_ua *req;
+	union netc_cbd cbd;
+	u32 len, req_len;
+	dma_addr_t dma;
+	void *tmp;
+	int err;
+
+	req_len = sizeof(*req);
+	tmp = ntmp_alloc_data_mem(dev, req_len, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	/* Request data */
+	ntmp_fill_crd_eid(&req->rbe, cbdrs->tbl.fmt_ver, 0,
+			  NTMP_GEN_UA_CFGEU, entry_id);
+	req->cfge = *cfge;
+
+	/* Request header */
+	len = NTMP_LEN(req_len, 0);
+	ntmp_fill_request_headr(&cbd, dma, len, NTMP_FMT_ID,
+				add ? NTMP_CMD_ADD : NTMP_CMD_UPDATE,
+				NTMP_AM_ENTRY_ID);
+
+	err = netc_xmit_ntmp_cmd(cbdrs, &cbd);
+	if (err)
+		dev_err(dev, "%s Frame Modification table entry failed (%d)\n",
+			add ? "Add" : "Update", err);
+
+	ntmp_free_data_mem(dev, req_len, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_fmt_add_or_update_entry);
+
+int ntmp_fmt_delete_entry(struct netc_cbdrs *cbdrs, u32 entry_id)
+{
+	return ntmp_delete_entry_by_id(cbdrs, NTMP_FMT_ID, cbdrs->tbl.fmt_ver,
+				       entry_id, 0, 0);
+}
+EXPORT_SYMBOL_GPL(ntmp_fmt_delete_entry);
+
+int ntmp_fmt_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+			 struct fmt_cfge_data *cfge)
+{
+	struct device *dev = cbdrs->dma_dev;
+	struct ntmp_req_by_eid *req;
+	struct fmt_resp_query *resp;
+	u32 req_len = sizeof(*req);
+	u32 resp_len, dma_len;
+	void *tmp = NULL;
+	dma_addr_t dma;
+	int err;
+
+	if (entry_id == NTMP_NULL_ENTRY_ID)
+		return -EINVAL;
+
+	resp_len = sizeof(*resp);
+	dma_len = max_t(u32, req_len, resp_len);
+	tmp = ntmp_alloc_data_mem(dev, dma_len, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	ntmp_fill_crd_eid(req, cbdrs->tbl.fmt_ver, 0, 0, entry_id);
+	err = ntmp_query_entry_by_id(cbdrs, NTMP_FMT_ID,
+				     NTMP_LEN(req_len, resp_len),
+				     req, &dma, true);
+	if (err)
+		goto end;
+
+	resp = (struct fmt_resp_query *)req;
+	*cfge = resp->cfge;
+
+end:
+	ntmp_free_data_mem(dev, dma_len, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_fmt_query_entry);
 
 MODULE_DESCRIPTION("NXP NETC Library");
 MODULE_LICENSE("Dual BSD/GPL");
