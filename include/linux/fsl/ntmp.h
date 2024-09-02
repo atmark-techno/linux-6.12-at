@@ -490,6 +490,11 @@ struct esrt_srse_data {
 	__le32 sqr_history[4];
 };
 
+struct ect_stse_data {
+	__le64 enq_frm_cnt;
+	__le64 rej_frm_cnt;
+};
+
 #pragma pack()
 
 struct netc_cbdr_regs {
@@ -525,6 +530,7 @@ struct netc_tbl_vers {
 	u8 isct_ver;
 	u8 ett_ver;
 	u8 esrt_ver;
+	u8 ect_ver;
 };
 
 struct netc_cbdr {
@@ -734,6 +740,9 @@ int ntmp_esrt_update_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
 			   struct esrt_cfge_data *cfge);
 int ntmp_esrt_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
 			  struct esrt_query_data *data);
+int ntmp_ect_update_entry(struct netc_cbdrs *cbdrs, u32 entry_id);
+int ntmp_ect_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+			 struct ect_stse_data *stse, bool update);
 #else
 static inline int netc_setup_cbdr(struct device *dev, int cbd_num,
 				  struct netc_cbdr_regs *regs,
@@ -968,6 +977,17 @@ static inline int ntmp_esrt_update_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
 
 static inline int ntmp_esrt_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
 					struct esrt_query_data *data)
+{
+	return 0;
+}
+
+static inline int ntmp_ect_update_entry(struct netc_cbdrs *cbdrs, u32 entry_id)
+{
+	return 0;
+}
+
+static inline int ntmp_ect_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+				       struct ect_stse_data *stse, bool update)
 {
 	return 0;
 }

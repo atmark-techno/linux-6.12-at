@@ -33,6 +33,7 @@
 #define NTMP_SGIT_ID			36
 #define NTMP_SGCLT_ID			37
 #define NTMP_ISCT_ID			38
+#define NTMP_ECT_ID			39
 
 /* Generic Update Actions for most tables */
 #define NTMP_GEN_UA_CFGEU		BIT(0)
@@ -47,6 +48,7 @@
 #define RPT_UA_STSEU			BIT(3)
 #define FDBT_UA_ACTEU			BIT(1)
 #define ESRT_UA_SRSEU			BIT(2)
+#define ECT_UA_STSEU			BIT(0)
 
 /* Quary Action: 0: Full query, 1: Only query entry ID */
 #define NTMP_QA_ENTRY_ID		1
@@ -2344,6 +2346,96 @@ end:
 	return err;
 }
 EXPORT_SYMBOL_GPL(ntmp_esrt_query_entry);
+
+int ntmp_ect_update_entry(struct netc_cbdrs *cbdrs, u32 entry_id)
+{
+	struct device *dev = cbdrs->dma_dev;
+	struct ntmp_req_by_eid *req;
+	union netc_cbd cbd;
+	u32 len, data_size;
+	dma_addr_t dma;
+	void *tmp;
+	int err;
+
+	data_size = sizeof(*req);
+	tmp = ntmp_alloc_data_mem(dev, data_size, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	/* Request data */
+	ntmp_fill_crd_eid(req, cbdrs->tbl.ect_ver, 0, ECT_UA_STSEU, entry_id);
+
+	/* Request header */
+	len = NTMP_LEN(data_size, 0);
+	ntmp_fill_request_headr(&cbd, dma, len, NTMP_ECT_ID,
+				NTMP_CMD_UPDATE, NTMP_AM_ENTRY_ID);
+
+	err = netc_xmit_ntmp_cmd(cbdrs, &cbd);
+	if (err)
+		dev_err(dev, "Update ECT entry failed (%d)\n", err);
+
+	ntmp_free_data_mem(dev, data_size, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_ect_update_entry);
+
+int ntmp_ect_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+			 struct ect_stse_data *stse, bool update)
+{
+	struct device *dev = cbdrs->dma_dev;
+	struct ect_resp_query *resp;
+	struct ntmp_req_by_eid *req;
+	union netc_cbd cbd;
+	u32 len, data_size;
+	dma_addr_t dma;
+	u16 ua = 0;
+	void *tmp;
+	int err;
+
+	if (entry_id == NTMP_NULL_ENTRY_ID)
+		return -EINVAL;
+
+	data_size = sizeof(*resp);
+	tmp = ntmp_alloc_data_mem(dev, data_size, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	/* Request data */
+	if (update)
+		/* Query, followed by Update. */
+		ua = ECT_UA_STSEU;
+
+	ntmp_fill_crd_eid(req, cbdrs->tbl.ect_ver, 0, ua, entry_id);
+
+	/* Request header */
+	len = NTMP_LEN(sizeof(*req), data_size);
+	ntmp_fill_request_headr(&cbd, dma, len, NTMP_ECT_ID,
+				update ? NTMP_CMD_QU : NTMP_CMD_QUERY,
+				NTMP_AM_ENTRY_ID);
+
+	err = netc_xmit_ntmp_cmd(cbdrs, &cbd);
+	if (err) {
+		dev_err(dev, "Query ECT entry failed (%d)\n", err);
+		goto end;
+	}
+
+	resp = (struct ect_resp_query *)req;
+	if (unlikely(entry_id != le32_to_cpu(resp->entry_id))) {
+		dev_err(dev, "ECT wuery EID:0x%0x, Response EID:0x%x\n",
+			entry_id, le32_to_cpu(resp->entry_id));
+		err = -EIO;
+		goto end;
+	}
+
+	*stse = resp->stse;
+
+end:
+	ntmp_free_data_mem(dev, data_size, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_ect_query_entry);
 
 MODULE_DESCRIPTION("NXP NETC Library");
 MODULE_LICENSE("Dual BSD/GPL");
