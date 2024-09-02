@@ -28,6 +28,7 @@
 #define NTMP_ISIT_ID			30
 #define NTMP_IST_ID			31
 #define NTMP_ISFT_ID			32
+#define NTMP_ETT_ID			33
 #define NTMP_SGIT_ID			36
 #define NTMP_SGCLT_ID			37
 #define NTMP_ISCT_ID			38
@@ -2181,6 +2182,89 @@ end:
 	return err;
 }
 EXPORT_SYMBOL_GPL(ntmp_vft_query_entry_by_vid);
+
+int ntmp_ett_add_or_update_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+				 bool add, struct ett_cfge_data *cfge)
+{
+	struct device *dev = cbdrs->dma_dev;
+	struct ett_req_ua *req;
+	union netc_cbd cbd;
+	u32 len, req_len;
+	dma_addr_t dma;
+	void *tmp;
+	int err;
+
+	req_len = sizeof(*req);
+	tmp = ntmp_alloc_data_mem(dev, req_len, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	/* Request data */
+	ntmp_fill_crd_eid(&req->rbe, cbdrs->tbl.ett_ver, 0,
+			  NTMP_GEN_UA_CFGEU, entry_id);
+	req->cfge = *cfge;
+
+	/* Request header */
+	len = NTMP_LEN(req_len, 0);
+	ntmp_fill_request_headr(&cbd, dma, len, NTMP_ETT_ID,
+				add ? NTMP_CMD_ADD : NTMP_CMD_UPDATE,
+				NTMP_AM_ENTRY_ID);
+
+	err = netc_xmit_ntmp_cmd(cbdrs, &cbd);
+	if (err)
+		dev_err(dev, "%s Egress treatment table entry failed (%d)\n",
+			add ? "Add" : "Update", err);
+
+	ntmp_free_data_mem(dev, req_len, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_ett_add_or_update_entry);
+
+int ntmp_ett_delete_entry(struct netc_cbdrs *cbdrs, u32 entry_id)
+{
+	return ntmp_delete_entry_by_id(cbdrs, NTMP_ETT_ID, cbdrs->tbl.ett_ver,
+				       entry_id, 0, 0);
+}
+EXPORT_SYMBOL_GPL(ntmp_ett_delete_entry);
+
+int ntmp_ett_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+			 struct ett_cfge_data *cfge)
+{
+	struct device *dev = cbdrs->dma_dev;
+	struct ntmp_req_by_eid *req;
+	struct ett_resp_query *resp;
+	u32 req_len = sizeof(*req);
+	u32 resp_len, dma_len;
+	void *tmp = NULL;
+	dma_addr_t dma;
+	int err;
+
+	if (entry_id == NTMP_NULL_ENTRY_ID)
+		return -EINVAL;
+
+	resp_len = sizeof(*resp);
+	dma_len = max_t(u32, req_len, resp_len);
+	tmp = ntmp_alloc_data_mem(dev, dma_len, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	ntmp_fill_crd_eid(req, cbdrs->tbl.ett_ver, 0, 0, entry_id);
+	err = ntmp_query_entry_by_id(cbdrs, NTMP_ETT_ID,
+				     NTMP_LEN(req_len, resp_len),
+				     req, &dma, true);
+	if (err)
+		goto end;
+
+	resp = (struct ett_resp_query *)req;
+	*cfge = resp->cfge;
+
+end:
+	ntmp_free_data_mem(dev, dma_len, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_ett_query_entry);
 
 MODULE_DESCRIPTION("NXP NETC Library");
 MODULE_LICENSE("Dual BSD/GPL");
