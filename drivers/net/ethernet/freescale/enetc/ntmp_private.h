@@ -73,6 +73,20 @@ struct rsst_req_update {
 	u8 groups[];
 };
 
+/* RFS Table Request and Response Data Buffer Format */
+struct rfst_req_add {
+	struct ntmp_req_by_eid rbe;
+	struct rfst_keye_data keye;
+	struct rfst_cfge_data cfge;
+};
+
+struct rfst_resp_query {
+	__le32 entry_id;
+	struct rfst_keye_data keye;
+	__le64 matched_frames; /* STSE_DATA */
+	struct rfst_cfge_data cfge;
+};
+
 /* Time Gate Scheduling Table Resquet and Response Data Buffer Format */
 struct tgst_ge {
 	__le32 interval;

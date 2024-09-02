@@ -19,6 +19,7 @@
 #define NTMP_MAFT_ID			1
 #define NTMP_VAFT_ID			2
 #define NTMP_RSST_ID			3
+#define NTMP_RFST_ID			4
 #define NTMP_TGST_ID			5
 #define NTMP_RPT_ID			10
 #define NTMP_IPFT_ID			13
@@ -645,6 +646,87 @@ end:
 	return err;
 }
 EXPORT_SYMBOL_GPL(ntmp_rsst_query_or_update_entry);
+
+int ntmp_rfst_add_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+			struct rfst_entry_data *data)
+{
+	struct device *dev = cbdrs->dma_dev;
+	struct rfst_req_add *req;
+	union netc_cbd cbd;
+	u32 len, req_len;
+	dma_addr_t dma;
+	void *tmp;
+	int err;
+
+	req_len = sizeof(*req);
+	tmp = ntmp_alloc_data_mem(dev, req_len, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	ntmp_fill_crd_eid(&req->rbe, cbdrs->tbl.rfst_ver, 0, 0, entry_id);
+	req->keye = data->keye;
+	req->cfge = data->cfge;
+
+	len = NTMP_LEN(req_len, 0);
+	ntmp_fill_request_headr(&cbd, dma, len, NTMP_RFST_ID,
+				NTMP_CMD_ADD, NTMP_AM_ENTRY_ID);
+
+	err = netc_xmit_ntmp_cmd(cbdrs, &cbd);
+	if (err)
+		dev_err(dev, "Add RFS table entry failed (%d)!", err);
+
+	ntmp_free_data_mem(dev, req_len, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_rfst_add_entry);
+
+int ntmp_rfst_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+			  struct rfst_entry_data *data)
+{
+	struct device *dev = cbdrs->dma_dev;
+	struct rfst_resp_query *resp;
+	u32 resp_len = sizeof(*resp);
+	struct ntmp_req_by_eid *req;
+	u32 req_len = sizeof(*req);
+	void *tmp = NULL;
+	dma_addr_t dma;
+	u32 dma_len;
+	int err;
+
+	if (entry_id == NTMP_NULL_ENTRY_ID)
+		return -EINVAL;
+
+	dma_len = max_t(u32, req_len, resp_len);
+	tmp = ntmp_alloc_data_mem(dev, dma_len, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	ntmp_fill_crd_eid(req, cbdrs->tbl.rfst_ver, 0, 0, entry_id);
+	err = ntmp_query_entry_by_id(cbdrs, NTMP_RFST_ID,
+				     NTMP_LEN(req_len, resp_len),
+				     req, &dma, true);
+	if (err)
+		goto end;
+
+	resp = (struct rfst_resp_query *)req;
+	data->keye = resp->keye;
+	data->cfge = resp->cfge;
+	data->matched_frames = resp->matched_frames;
+
+end:
+	ntmp_free_data_mem(dev, dma_len, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_rfst_query_entry);
+
+int ntmp_rfst_delete_entry(struct netc_cbdrs *cbdrs, u32 entry_id)
+{
+	return ntmp_delete_entry_by_id(cbdrs, NTMP_RFST_ID, cbdrs->tbl.rfst_ver,
+				       entry_id, 0, 0);
+}
+EXPORT_SYMBOL_GPL(ntmp_rfst_delete_entry);
 
 /* Test codes for Time gate scheduling table */
 int ntmp_tgst_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
