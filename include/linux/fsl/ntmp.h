@@ -612,6 +612,7 @@ struct netc_tbl_vers {
 	u8 fmt_ver;
 	u8 bpt_ver;
 	u8 sbpt_ver;
+	u8 fmdt_ver;
 };
 
 struct netc_cbdr {
@@ -847,6 +848,10 @@ int ntmp_sbpt_update_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
 			   struct sbpt_cfge_data *cfge);
 int ntmp_sbpt_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
 			  struct sbpt_query_data *data);
+int ntmp_fmdt_update_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+			   u8 *data, u32 data_len);
+int ntmp_fmdt_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+			  u8 *data_buff, u32 data_len);
 #else
 static inline int netc_setup_cbdr(struct device *dev, int cbd_num,
 				  struct netc_cbdr_regs *regs,
@@ -1133,6 +1138,18 @@ static inline int ntmp_sbpt_update_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
 
 static inline int ntmp_sbpt_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
 					struct sbpt_query_data *data)
+{
+	return 0;
+}
+
+static inline int ntmp_fmdt_update_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+					 u8 *data, u32 data_len)
+{
+	return 0;
+}
+
+static inline int ntmp_fmdt_query_entry(struct netc_cbdrs *cbdrs, u32 entry_id,
+			  u8 *data_buff, u32 data_len)
 {
 	return 0;
 }
