@@ -94,6 +94,9 @@ int netc_psfp_flower_stat(struct ntmp_priv *priv, struct netc_flower_rule *rule,
 			  u64 *byte_cnt, u64 *pkt_cnt, u64 *drop_cnt);
 int netc_setup_taprio(struct ntmp_priv *priv, u32 entry_id,
 		      struct tc_taprio_qopt_offload *f);
+int netc_ipft_keye_construct(struct flow_rule *rule, int port_id,
+			     u16 prio, struct ipft_keye_data *keye,
+			     struct netlink_ext_ack *extack);
 
 /* debugfs API */
 int netc_kstrtouint(const char __user *buffer, size_t count, loff_t *ppos, u32 *val);
@@ -173,6 +176,13 @@ static inline int netc_psfp_flower_stat(struct ntmp_priv *priv,
 
 static inline int netc_setup_taprio(struct ntmp_priv *priv, u32 entry_id,
 				    struct tc_taprio_qopt_offload *f)
+{
+	return 0;
+}
+
+static inline int netc_ipft_keye_construct(struct flow_rule *rule, int port_id,
+					   u16 prio, struct ipft_keye_data *keye,
+					   struct netlink_ext_ack *extack)
 {
 	return 0;
 }
