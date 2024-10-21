@@ -43,6 +43,7 @@ struct imx_fsb_s400_hw {
 	unsigned int fsb_otp_shadow;
 	uint32_t se_soc_id;
 	const struct bank_2_reg fsb_bank_reg[MAPPING_SIZE];
+	const uint16_t* nonecc_fuse_banks;
 	bool oscca_fuse_read;
 	bool reverse_mac_address;
 	bool increase_mac_address;
@@ -328,18 +329,40 @@ static int fsb_s400_fuse_write(void *priv, unsigned int offset, void *val, size_
 {
 	struct imx_fsb_s400_fuse *fuse = priv;
 	u32 *buf = val;
-	u32 index;
+	u16 index, bank;
+	bool lock = false;
 	int ret;
 
-	/* allow only writing one complete OTP word at a time */
-	if (bytes != 4)
+	/* allow only writing one complete OTP word at a time,
+	 * and avoid locking a fuse to 0 data */
+	if (bytes != 4 || *buf == 0)
 		return -EINVAL;
 
 	/* divide the offset by the word size to get the word count */
 	index = offset / 4;
+	bank = index / 8;
+
+        /* Lock 8ULP ECC fuse word, so second programming will return failure.
+         * iMX9 OTP can protect ECC fuse, so does not need it
+         */
+	if (fuse->hw->nonecc_fuse_banks) {
+		const u16 *nonecc_bank;
+
+		for (nonecc_bank = fuse->hw->nonecc_fuse_banks;
+		     *nonecc_bank != (u16)-1;
+		     nonecc_bank++) {
+			if (*nonecc_bank == bank)
+				break;
+		}
+		if (*nonecc_bank == (u16)-1)
+			lock = true;
+	}
+
+	dev_info(fuse->config.dev, "writing %x to bank %d word %d, lock %d\n",
+		 *buf, bank, index % 8, lock);
 
 	mutex_lock(&fuse->lock);
-	ret = imx_se_write_fuse(fuse->se_data, index, *buf, false);
+	ret = imx_se_write_fuse(fuse->se_data, index, *buf, lock);
 	mutex_unlock(&fuse->lock);
 
 	return ret;
@@ -380,9 +403,7 @@ static int imx_fsb_s400_fuse_probe(struct platform_device *pdev)
 		fuse->config.size = 3296; /* 103 Banks */
 	fuse->config.add_legacy_fixed_of_cells = true;
 	fuse->config.reg_read = fsb_s400_fuse_read;
-	if ((of_device_is_compatible(pdev->dev.of_node, "fsl,imx93-ocotp")) ||
-	    (of_device_is_compatible(pdev->dev.of_node, "fsl,imx95-ocotp")))
-		fuse->config.reg_write = fsb_s400_fuse_write;
+	fuse->config.reg_write = fsb_s400_fuse_write;
 	fuse->config.priv = fuse;
 	mutex_init(&fuse->lock);
 	fuse->hw = of_device_get_match_data(&pdev->dev);
@@ -458,6 +479,10 @@ static const u8 imx95_pf_mac_offset_list[] = { 0, 3, 6 };
  */
 static const u8 imx94_pf_mac_offset_list[] = { 2, 7, 8, 9 };
 
+static const u16 imx8ulp_nonecc_fuse_banks[] = {
+	0, 1, 8, 12, 16, 22, 24, 25, 26, 27, 36, 41, 51, 56, -1
+};
+
 static const struct imx_fsb_s400_hw imx8ulp_fsb_s400_hw = {
 	.soc = IMX8ULP,
 	.fsb_otp_shadow = 0x800,
@@ -485,6 +510,7 @@ static const struct imx_fsb_s400_hw imx8ulp_fsb_s400_hw = {
 		[20] = { 45, 192 },
 		[21] = { 46, 200 },
 	},
+	.nonecc_fuse_banks = imx8ulp_nonecc_fuse_banks,
 	.oscca_fuse_read = false,
 	.reverse_mac_address = false,
 	.increase_mac_address = false,
