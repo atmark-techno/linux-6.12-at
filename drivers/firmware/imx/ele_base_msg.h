@@ -111,6 +111,17 @@ struct ele_dev_info {
 #define ELE_VOLT_CHANGE_REQ_MSG_SZ			0x4
 #define ELE_VOLT_CHANGE_RSP_MSG_SZ			0x8
 
+#define ELE_FWD_LIFECYCLE_UP_REQ       0x95
+#define ELE_FWD_LIFECYCLE_UP_REQ_MSG_SZ        0x08
+#define ELE_FWD_LIFECYCLE_UP_RSP_MSG_SZ        0x08
+
+#define ELE_GET_EVENTS_REQ             0xA2
+#define ELE_GET_EVENTS_REQ_MSG_SZ      0x04
+#define ELE_GET_EVENTS_RSP_MSG_SZ      0x30
+/* - 3 for header, status and count itself */
+#define ELE_GET_EVENTS_MAX_COUNT \
+	((ELE_GET_EVENTS_RSP_MSG_SZ >> 2) - 3)
+
 #define ELE_GET_STATE			0xB2
 #define ELE_GET_STATE_REQ_SZ		0x04
 #define ELE_GET_STATE_RSP_SZ		0x10
@@ -142,4 +153,6 @@ int ele_v2x_fw_authenticate(struct se_if_priv *priv, phys_addr_t addr);
 int ele_debug_dump(struct se_if_priv *priv);
 int ele_get_fw_version(struct se_if_priv *priv, u32 *fw_ver_word,
 		       u32 *commit_sha1);
+int ele_get_events(struct se_if_priv *priv, u32 *events, u32 *events_count);
+int ele_forward_lifecycle(struct se_if_priv *priv, u16 life_cycle);
 #endif

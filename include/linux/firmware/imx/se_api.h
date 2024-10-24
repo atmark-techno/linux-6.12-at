@@ -26,5 +26,7 @@ int imx_se_write_fuse(void *se_if_data, uint16_t fuse_index,
 int imx_se_voltage_change_req(void *se_if_data, bool start);
 int imx_se_read_fuse(void *se_if_data,
 		     uint16_t fuse_id, u32 *value);
+int imx_se_get_events(void *se_if_data, u32 *events, u32 *events_count);
+int imx_se_forward_lifecycle(void *se_if_data, u16 life_cycle);
 
 #endif /* __SE_API_H__ */

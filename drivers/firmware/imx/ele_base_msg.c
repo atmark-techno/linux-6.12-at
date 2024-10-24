@@ -224,6 +224,136 @@ exit:
 	return ret;
 }
 
+int ele_get_events(struct se_if_priv *priv, u32 *events, u32 *events_count)
+{
+	struct se_api_msg *tx_msg __free(kfree) = NULL;
+	struct se_api_msg *rx_msg __free(kfree) = NULL;
+	u16 actual_count, i;
+	int ret;
+
+	if (!priv) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	tx_msg = kzalloc(ELE_GET_EVENTS_REQ_MSG_SZ, GFP_KERNEL);
+	if (!tx_msg) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	rx_msg = kzalloc(ELE_GET_EVENTS_RSP_MSG_SZ, GFP_KERNEL);
+	if (!rx_msg) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	ret = se_fill_cmd_msg_hdr(priv,
+				  (struct se_msg_hdr *)&tx_msg->header,
+				  ELE_GET_EVENTS_REQ,
+				  ELE_GET_EVENTS_REQ_MSG_SZ,
+				  true);
+	if (ret) {
+		dev_err(priv->dev, "Error: se_fill_cmd_msg_hdr failed.\n");
+		goto exit;
+	}
+
+	ret = ele_msg_send_rcv(priv->priv_dev_ctx,
+			       tx_msg,
+			       ELE_GET_EVENTS_REQ_MSG_SZ,
+			       rx_msg,
+			       ELE_GET_EVENTS_RSP_MSG_SZ);
+	if (ret < 0)
+		goto exit;
+
+	ret = se_val_rsp_hdr_n_status(priv,
+				      rx_msg,
+				      ELE_GET_EVENTS_REQ,
+				      ELE_GET_EVENTS_RSP_MSG_SZ,
+				      true);
+	if (ret)
+		goto exit;
+
+	actual_count = rx_msg->data[1] & 0xffff;
+	if (actual_count > ELE_GET_EVENTS_MAX_COUNT)
+		actual_count = ELE_GET_EVENTS_MAX_COUNT;
+	if (actual_count > *events_count)
+		actual_count = *events_count;
+
+	for (i = 0; i < actual_count; i++)
+		events[i] = rx_msg->data[i + 2];
+	*events_count = actual_count;
+
+exit:
+	return ret;
+}
+
+int imx_se_get_events(void *se_if_data, u32 *events, u32 *events_count)
+{
+	return ele_get_events((struct se_if_priv *)se_if_data, events, events_count);
+}
+EXPORT_SYMBOL_GPL(imx_se_get_events);
+
+int ele_forward_lifecycle(struct se_if_priv *priv, u16 life_cycle)
+{
+	struct se_api_msg *tx_msg __free(kfree) = NULL;
+	struct se_api_msg *rx_msg __free(kfree) = NULL;
+	int ret;
+
+	if (!priv) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	tx_msg = kzalloc(ELE_FWD_LIFECYCLE_UP_REQ_MSG_SZ, GFP_KERNEL);
+	if (!tx_msg) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	rx_msg = kzalloc(ELE_FWD_LIFECYCLE_UP_RSP_MSG_SZ, GFP_KERNEL);
+	if (!rx_msg) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+
+	ret = se_fill_cmd_msg_hdr(priv,
+				  (struct se_msg_hdr *)&tx_msg->header,
+				  ELE_FWD_LIFECYCLE_UP_REQ,
+				  ELE_FWD_LIFECYCLE_UP_REQ_MSG_SZ,
+				  true);
+	if (ret) {
+		dev_err(priv->dev, "Error: se_fill_cmd_msg_hdr failed.\n");
+		goto exit;
+	}
+
+	*((u16*)tx_msg->data) = life_cycle;
+
+	ret = ele_msg_send_rcv(priv->priv_dev_ctx,
+			       tx_msg,
+			       ELE_FWD_LIFECYCLE_UP_REQ_MSG_SZ,
+			       rx_msg,
+			       ELE_FWD_LIFECYCLE_UP_RSP_MSG_SZ);
+	if (ret < 0)
+		goto exit;
+
+	ret = se_val_rsp_hdr_n_status(priv,
+				      rx_msg,
+				      ELE_FWD_LIFECYCLE_UP_REQ,
+				      ELE_FWD_LIFECYCLE_UP_RSP_MSG_SZ,
+				      true);
+
+exit:
+	return ret;
+}
+
+int imx_se_forward_lifecycle(void *se_if_data, u16 life_cycle)
+{
+	return ele_forward_lifecycle((struct se_if_priv *)se_if_data, life_cycle);
+}
+EXPORT_SYMBOL_GPL(imx_se_forward_lifecycle);
+
 int ele_fw_authenticate(struct se_if_priv *priv, phys_addr_t addr)
 {
 	struct se_api_msg *tx_msg __free(kfree) = NULL;
