@@ -24,6 +24,7 @@
 #define NTMP_RPT_ID			10
 #define NTMP_IPFT_ID			13
 #define NTMP_FDBT_ID			15
+#define NTMP_VFT_ID			18
 #define NTMP_ISIT_ID			30
 #define NTMP_IST_ID			31
 #define NTMP_ISFT_ID			32
@@ -1947,6 +1948,239 @@ end:
 	return err;
 }
 EXPORT_SYMBOL_GPL(ntmp_fdbt_search_port_entry);
+
+/**
+ * ntmp_vft_add_entry - add an entry into the VLAN filter table
+ * @cbdrs: target netc_cbdrs struct
+ * @entry_id: retruned value, the ID of the Vlan filter entry
+ * @vid: VLAN ID
+ * @cfge: configuration elemenet data
+ *
+ * Returns two values: entry_id and error code (0 on success or < 0 on error)
+ */
+int ntmp_vft_add_entry(struct netc_cbdrs *cbdrs, u32 *entry_id,
+		       u16 vid, struct vft_cfge_data *cfge)
+{
+	struct device *dev = cbdrs->dma_dev;
+	struct vft_resp_query *resp;
+	struct vft_req_ua *req;
+	union netc_cbd cbd;
+	u32 len, data_size;
+	dma_addr_t dma;
+	void *tmp;
+	int err;
+
+	data_size = sizeof(*resp);
+	tmp = ntmp_alloc_data_mem(dev, data_size, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	/* Request data */
+	ntmp_fill_crd(&req->crd, cbdrs->tbl.vft_ver, NTMP_QA_ENTRY_ID,
+		      NTMP_GEN_UA_CFGEU);
+	req->ak.exact.vid = cpu_to_le16(vid);
+	req->cfge = *cfge;
+
+	/* Request header */
+	len = NTMP_LEN(sizeof(*req), data_size);
+	ntmp_fill_request_headr(&cbd, dma, len, NTMP_VFT_ID,
+				NTMP_CMD_AQ, NTMP_AM_EXACT_KEY);
+
+	err = netc_xmit_ntmp_cmd(cbdrs, &cbd);
+	if (err) {
+		dev_err(dev, "Add VLAN filter table entry failed (%d)\n", err);
+		goto end;
+	}
+
+	if (entry_id) {
+		resp = (struct vft_resp_query *)req;
+		*entry_id = le32_to_cpu(resp->entry_id);
+	}
+
+end:
+	ntmp_free_data_mem(dev, data_size, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_vft_add_entry);
+
+int ntmp_vft_update_entry(struct netc_cbdrs *cbdrs, u16 vid,
+			  struct vft_cfge_data *cfge)
+{
+	struct device *dev = cbdrs->dma_dev;
+	struct vft_req_ua *req;
+	union netc_cbd cbd;
+	u32 len, data_size;
+	dma_addr_t dma;
+	void *tmp;
+	int err;
+
+	data_size = sizeof(*req);
+	tmp = ntmp_alloc_data_mem(dev, data_size, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	/* Request data */
+	ntmp_fill_crd(&req->crd, cbdrs->tbl.vft_ver, 0, NTMP_GEN_UA_CFGEU);
+	req->ak.exact.vid = cpu_to_le16(vid);
+	req->cfge = *cfge;
+
+	/* Request header */
+	len = NTMP_LEN(data_size, sizeof(struct common_resp_nq));
+	ntmp_fill_request_headr(&cbd, dma, len, NTMP_VFT_ID,
+				NTMP_CMD_UPDATE, NTMP_AM_EXACT_KEY);
+
+	err = netc_xmit_ntmp_cmd(cbdrs, &cbd);
+	if (err)
+		dev_err(dev, "Update VLAN filter table entry failed (%d)\n", err);
+
+	ntmp_free_data_mem(dev, data_size, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_vft_update_entry);
+
+int ntmp_vft_delete_entry(struct netc_cbdrs *cbdrs, u16 vid)
+{
+	struct device *dev = cbdrs->dma_dev;
+	struct vft_req_qd *req;
+	union netc_cbd cbd;
+	u32 len, data_size;
+	dma_addr_t dma;
+	void *tmp;
+	int err;
+
+	data_size = sizeof(*req);
+	tmp = ntmp_alloc_data_mem(dev, data_size, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	/* Request data */
+	ntmp_fill_crd(&req->crd, cbdrs->tbl.vft_ver, 0, 0);
+	req->ak.exact.vid = cpu_to_le16(vid);
+
+	/* Request header */
+	len = NTMP_LEN(data_size, sizeof(struct common_resp_nq));
+	ntmp_fill_request_headr(&cbd, dma, len, NTMP_VFT_ID,
+				NTMP_CMD_DELETE, NTMP_AM_EXACT_KEY);
+
+	err = netc_xmit_ntmp_cmd(cbdrs, &cbd);
+	if (err)
+		dev_err(dev, "Delete VLAN filter table entry failed (%d)\n", err);
+
+	ntmp_free_data_mem(dev, data_size, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_vft_delete_entry);
+
+int ntmp_vft_search_entry(struct netc_cbdrs *cbdrs, u32 *resume_eid, u32 *entry_id,
+			  u16 *vid, struct vft_cfge_data *cfge)
+{
+	struct device *dev = cbdrs->dma_dev;
+	struct vft_resp_query *resp;
+	struct vft_req_qd *req;
+	union netc_cbd cbd;
+	u32 len, data_size;
+	dma_addr_t dma;
+	void *tmp;
+	int err;
+
+	data_size = sizeof(*resp);
+	tmp = ntmp_alloc_data_mem(dev, data_size, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	/* Request data */
+	ntmp_fill_crd(&req->crd, cbdrs->tbl.vft_ver, 0, 0);
+	req->ak.resume_entry_id = cpu_to_le32(*resume_eid);
+
+	/* Request header */
+	len = NTMP_LEN(sizeof(*req), data_size);
+	ntmp_fill_request_headr(&cbd, dma, len, NTMP_VFT_ID,
+				NTMP_CMD_QUERY, NTMP_AM_SEARCH);
+
+	err = netc_xmit_ntmp_cmd(cbdrs, &cbd);
+	if (err) {
+		dev_err(dev, "Search VLAN filter table entry failed (%d)\n", err);
+		goto end;
+	}
+
+	if (!cbd.resp_hdr.num_matched) {
+		*entry_id = NTMP_NULL_ENTRY_ID;
+		*resume_eid = NTMP_NULL_ENTRY_ID;
+		goto end;
+	}
+
+	resp = (struct vft_resp_query *)req;
+	/* Get the response resume_entry_id to continue search */
+	*resume_eid = le32_to_cpu(resp->status);
+	*entry_id = le32_to_cpu(resp->entry_id);
+	*cfge = resp->cfge;
+	*vid = le16_to_cpu(resp->vid);
+
+end:
+	ntmp_free_data_mem(dev, data_size, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_vft_search_entry);
+
+int ntmp_vft_query_entry_by_vid(struct netc_cbdrs *cbdrs, u16 vid, u32 *entry_id,
+				struct vft_cfge_data *cfge)
+{
+	struct device *dev = cbdrs->dma_dev;
+	u32 req_len, resp_len, dma_len, len;
+	struct vft_resp_query *resp;
+	struct vft_req_qd *req;
+	union netc_cbd cbd;
+	dma_addr_t dma;
+	void *tmp;
+	int err;
+
+	req_len = sizeof(*req);
+	resp_len = sizeof(*resp);
+	dma_len = max_t(u32, req_len, resp_len);
+	tmp = ntmp_alloc_data_mem(dev, dma_len, &dma, (void **)&req);
+	if (!tmp)
+		return -ENOMEM;
+
+	/* Request data */
+	ntmp_fill_crd(&req->crd, cbdrs->tbl.vft_ver, 0, 0);
+	req->ak.exact.vid = cpu_to_le16(vid);
+
+	/* Request header */
+	len = NTMP_LEN(req_len, resp_len);
+	ntmp_fill_request_headr(&cbd, dma, len, NTMP_VFT_ID,
+				NTMP_CMD_QUERY, NTMP_AM_EXACT_KEY);
+	err = netc_xmit_ntmp_cmd(cbdrs, &cbd);
+	if (err) {
+		dev_err(dev, "Search VLAN filter table entry failed (%d)\n", err);
+		goto end;
+	}
+
+	if (!cbd.resp_hdr.num_matched) {
+		*entry_id = NTMP_NULL_ENTRY_ID;
+		goto end;
+	}
+
+	resp = (struct vft_resp_query *)req;
+	if (vid != le16_to_cpu(resp->vid)) {
+		dev_err(dev, "Response VID (%u) doesn't match query VID (%u)\n",
+			le16_to_cpu(resp->vid), vid);
+		err = -EINVAL;
+		goto end;
+	}
+
+	*entry_id = le32_to_cpu(resp->entry_id);
+	*cfge = resp->cfge;
+
+end:
+	ntmp_free_data_mem(dev, dma_len, tmp, dma);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ntmp_vft_query_entry_by_vid);
 
 MODULE_DESCRIPTION("NXP NETC Library");
 MODULE_LICENSE("Dual BSD/GPL");
