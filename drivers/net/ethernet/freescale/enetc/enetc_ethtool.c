@@ -222,7 +222,7 @@ static const struct {
 static const struct {
 	int reg;
 	char name[ETH_GSTRING_LEN];
-} enetc_port_counters[] = {
+} enetc_mac_port_counters[] = {
 	{ ENETC_PM_REOCT(0),	"MAC rx ethernet octets" },
 	{ ENETC_PM_RALN(0),	"MAC rx alignment errors" },
 	{ ENETC_PM_RXPF(0),	"MAC rx valid pause frames" },
@@ -274,6 +274,12 @@ static const struct {
 	{ ENETC_PM_TSCOL(0),	"MAC tx single collisions" },
 	{ ENETC_PM_TLCOL(0),	"MAC tx late collisions" },
 	{ ENETC_PM_TECOL(0),	"MAC tx excessive collisions" },
+};
+
+static const struct {
+	int reg;
+	char name[ETH_GSTRING_LEN];
+} enetc_port_counters[] = {
 	{ ENETC_UFDMF,		"SI MAC nomatch u-cast discards" },
 	{ ENETC_MFDMF,		"SI MAC nomatch m-cast discards" },
 	{ ENETC_PBFDSIR,	"SI MAC nomatch b-cast discards" },
@@ -409,6 +415,7 @@ static int enetc_get_sset_count(struct net_device *ndev, int sset)
 
 	if (is_enetc_rev1(si)) {
 		len += ARRAY_SIZE(enetc_port_counters);
+		len += ARRAY_SIZE(enetc_mac_port_counters);
 	} else {
 		len += ARRAY_SIZE(enetc4_port_counters);
 		len += ARRAY_SIZE(enetc4_mac_port_counters);
@@ -481,6 +488,12 @@ static void enetc_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 		if (is_enetc_rev1(si)) {
 			for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++) {
 				strscpy(p, enetc_port_counters[i].name,
+					ETH_GSTRING_LEN);
+				p += ETH_GSTRING_LEN;
+			}
+
+			for (i = 0; i < ARRAY_SIZE(enetc_mac_port_counters); i++) {
+				strscpy(p, enetc_mac_port_counters[i].name,
 					ETH_GSTRING_LEN);
 				p += ETH_GSTRING_LEN;
 			}
@@ -570,12 +583,15 @@ static void enetc_get_ethtool_stats(struct net_device *ndev,
 	if (is_enetc_rev1(si)) {
 		for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++)
 			data[o++] = enetc_port_rd(hw, enetc_port_counters[i].reg);
+
+		for (i = 0; i < ARRAY_SIZE(enetc_mac_port_counters); i++)
+			data[o++] = enetc_port_rd64(hw, enetc_mac_port_counters[i].reg);
 	} else {
 		for (i = 0; i < ARRAY_SIZE(enetc4_port_counters); i++)
 			data[o++] = enetc_port_rd(hw, enetc4_port_counters[i].reg);
 
 		for (i = 0; i < ARRAY_SIZE(enetc4_mac_port_counters); i++)
-			data[o++] = enetc_port_rd(hw, enetc4_mac_port_counters[i].reg);
+			data[o++] = enetc_port_rd64(hw, enetc4_mac_port_counters[i].reg);
 	}
 }
 
@@ -602,11 +618,11 @@ static void enetc_pause_stats(struct enetc_si *si, int mac,
 		return;
 
 	if (is_enetc_rev1(si)) {
-		pause_stats->tx_pause_frames = enetc_port_rd(hw, ENETC_PM_TXPF(mac));
-		pause_stats->rx_pause_frames = enetc_port_rd(hw, ENETC_PM_RXPF(mac));
+		pause_stats->tx_pause_frames = enetc_port_rd64(hw, ENETC_PM_TXPF(mac));
+		pause_stats->rx_pause_frames = enetc_port_rd64(hw, ENETC_PM_RXPF(mac));
 	} else {
-		pause_stats->tx_pause_frames = enetc_port_rd(hw, ENETC4_PM_TXPF(mac));
-		pause_stats->rx_pause_frames = enetc_port_rd(hw, ENETC4_PM_RXPF(mac));
+		pause_stats->tx_pause_frames = enetc_port_rd64(hw, ENETC4_PM_TXPF(mac));
+		pause_stats->rx_pause_frames = enetc_port_rd64(hw, ENETC4_PM_RXPF(mac));
 	}
 }
 
@@ -636,42 +652,42 @@ static void enetc_mac_stats(struct enetc_si *si, int mac,
 	struct enetc_hw *hw = &si->hw;
 
 	if (is_enetc_rev1(si)) {
-		s->FramesTransmittedOK = enetc_port_rd(hw, ENETC_PM_TFRM(mac));
-		s->SingleCollisionFrames = enetc_port_rd(hw, ENETC_PM_TSCOL(mac));
-		s->MultipleCollisionFrames = enetc_port_rd(hw, ENETC_PM_TMCOL(mac));
-		s->FramesReceivedOK = enetc_port_rd(hw, ENETC_PM_RFRM(mac));
-		s->FrameCheckSequenceErrors = enetc_port_rd(hw, ENETC_PM_RFCS(mac));
-		s->AlignmentErrors = enetc_port_rd(hw, ENETC_PM_RALN(mac));
-		s->OctetsTransmittedOK = enetc_port_rd(hw, ENETC_PM_TEOCT(mac));
-		s->FramesWithDeferredXmissions = enetc_port_rd(hw, ENETC_PM_TDFR(mac));
-		s->LateCollisions = enetc_port_rd(hw, ENETC_PM_TLCOL(mac));
-		s->FramesAbortedDueToXSColls = enetc_port_rd(hw, ENETC_PM_TECOL(mac));
-		s->FramesLostDueToIntMACXmitError = enetc_port_rd(hw, ENETC_PM_TERR(mac));
-		s->CarrierSenseErrors = enetc_port_rd(hw, ENETC_PM_TCRSE(mac));
-		s->OctetsReceivedOK = enetc_port_rd(hw, ENETC_PM_REOCT(mac));
-		s->FramesLostDueToIntMACRcvError = enetc_port_rd(hw, ENETC_PM_RDRNTP(mac));
-		s->MulticastFramesXmittedOK = enetc_port_rd(hw, ENETC_PM_TMCA(mac));
-		s->BroadcastFramesXmittedOK = enetc_port_rd(hw, ENETC_PM_TBCA(mac));
-		s->MulticastFramesReceivedOK = enetc_port_rd(hw, ENETC_PM_RMCA(mac));
-		s->BroadcastFramesReceivedOK = enetc_port_rd(hw, ENETC_PM_RBCA(mac));
+		s->FramesTransmittedOK = enetc_port_rd64(hw, ENETC_PM_TFRM(mac));
+		s->SingleCollisionFrames = enetc_port_rd64(hw, ENETC_PM_TSCOL(mac));
+		s->MultipleCollisionFrames = enetc_port_rd64(hw, ENETC_PM_TMCOL(mac));
+		s->FramesReceivedOK = enetc_port_rd64(hw, ENETC_PM_RFRM(mac));
+		s->FrameCheckSequenceErrors = enetc_port_rd64(hw, ENETC_PM_RFCS(mac));
+		s->AlignmentErrors = enetc_port_rd64(hw, ENETC_PM_RALN(mac));
+		s->OctetsTransmittedOK = enetc_port_rd64(hw, ENETC_PM_TEOCT(mac));
+		s->FramesWithDeferredXmissions = enetc_port_rd64(hw, ENETC_PM_TDFR(mac));
+		s->LateCollisions = enetc_port_rd64(hw, ENETC_PM_TLCOL(mac));
+		s->FramesAbortedDueToXSColls = enetc_port_rd64(hw, ENETC_PM_TECOL(mac));
+		s->FramesLostDueToIntMACXmitError = enetc_port_rd64(hw, ENETC_PM_TERR(mac));
+		s->CarrierSenseErrors = enetc_port_rd64(hw, ENETC_PM_TCRSE(mac));
+		s->OctetsReceivedOK = enetc_port_rd64(hw, ENETC_PM_REOCT(mac));
+		s->FramesLostDueToIntMACRcvError = enetc_port_rd64(hw, ENETC_PM_RDRNTP(mac));
+		s->MulticastFramesXmittedOK = enetc_port_rd64(hw, ENETC_PM_TMCA(mac));
+		s->BroadcastFramesXmittedOK = enetc_port_rd64(hw, ENETC_PM_TBCA(mac));
+		s->MulticastFramesReceivedOK = enetc_port_rd64(hw, ENETC_PM_RMCA(mac));
+		s->BroadcastFramesReceivedOK = enetc_port_rd64(hw, ENETC_PM_RBCA(mac));
 	} else {
-		s->FramesTransmittedOK = enetc_port_rd(hw, ENETC4_PM_TFRM(mac));
-		s->SingleCollisionFrames = enetc_port_rd(hw, ENETC4_PM_TSCOL(mac));
-		s->MultipleCollisionFrames = enetc_port_rd(hw, ENETC4_PM_TMCOL(mac));
-		s->FramesReceivedOK = enetc_port_rd(hw, ENETC4_PM_RFRM(mac));
-		s->FrameCheckSequenceErrors = enetc_port_rd(hw, ENETC4_PM_RFCS(mac));
-		s->AlignmentErrors = enetc_port_rd(hw, ENETC4_PM_RALN(mac));
-		s->OctetsTransmittedOK = enetc_port_rd(hw, ENETC4_PM_TEOCT(mac));
-		s->FramesWithDeferredXmissions = enetc_port_rd(hw, ENETC4_PM_TDFR(mac));
-		s->LateCollisions = enetc_port_rd(hw, ENETC4_PM_TLCOL(mac));
-		s->FramesAbortedDueToXSColls = enetc_port_rd(hw, ENETC4_PM_TECOL(mac));
-		s->FramesLostDueToIntMACXmitError = enetc_port_rd(hw, ENETC4_PM_TERR(mac));
-		s->OctetsReceivedOK = enetc_port_rd(hw, ENETC4_PM_REOCT(mac));
-		s->FramesLostDueToIntMACRcvError = enetc_port_rd(hw, ENETC4_PM_RDRNTP(mac));
-		s->MulticastFramesXmittedOK = enetc_port_rd(hw, ENETC4_PM_TMCA(mac));
-		s->BroadcastFramesXmittedOK = enetc_port_rd(hw, ENETC4_PM_TBCA(mac));
-		s->MulticastFramesReceivedOK = enetc_port_rd(hw, ENETC4_PM_RMCA(mac));
-		s->BroadcastFramesReceivedOK = enetc_port_rd(hw, ENETC4_PM_RBCA(mac));
+		s->FramesTransmittedOK = enetc_port_rd64(hw, ENETC4_PM_TFRM(mac));
+		s->SingleCollisionFrames = enetc_port_rd64(hw, ENETC4_PM_TSCOL(mac));
+		s->MultipleCollisionFrames = enetc_port_rd64(hw, ENETC4_PM_TMCOL(mac));
+		s->FramesReceivedOK = enetc_port_rd64(hw, ENETC4_PM_RFRM(mac));
+		s->FrameCheckSequenceErrors = enetc_port_rd64(hw, ENETC4_PM_RFCS(mac));
+		s->AlignmentErrors = enetc_port_rd64(hw, ENETC4_PM_RALN(mac));
+		s->OctetsTransmittedOK = enetc_port_rd64(hw, ENETC4_PM_TEOCT(mac));
+		s->FramesWithDeferredXmissions = enetc_port_rd64(hw, ENETC4_PM_TDFR(mac));
+		s->LateCollisions = enetc_port_rd64(hw, ENETC4_PM_TLCOL(mac));
+		s->FramesAbortedDueToXSColls = enetc_port_rd64(hw, ENETC4_PM_TECOL(mac));
+		s->FramesLostDueToIntMACXmitError = enetc_port_rd64(hw, ENETC4_PM_TERR(mac));
+		s->OctetsReceivedOK = enetc_port_rd64(hw, ENETC4_PM_REOCT(mac));
+		s->FramesLostDueToIntMACRcvError = enetc_port_rd64(hw, ENETC4_PM_RDRNTP(mac));
+		s->MulticastFramesXmittedOK = enetc_port_rd64(hw, ENETC4_PM_TMCA(mac));
+		s->BroadcastFramesXmittedOK = enetc_port_rd64(hw, ENETC4_PM_TBCA(mac));
+		s->MulticastFramesReceivedOK = enetc_port_rd64(hw, ENETC4_PM_RMCA(mac));
+		s->BroadcastFramesReceivedOK = enetc_port_rd64(hw, ENETC4_PM_RBCA(mac));
 	}
 }
 
@@ -681,11 +697,11 @@ static void enetc_ctrl_stats(struct enetc_si *si, int mac,
 	struct enetc_hw *hw = &si->hw;
 
 	if (is_enetc_rev1(si)) {
-		s->MACControlFramesTransmitted = enetc_port_rd(hw, ENETC_PM_TCNP(mac));
-		s->MACControlFramesReceived = enetc_port_rd(hw, ENETC_PM_RCNP(mac));
+		s->MACControlFramesTransmitted = enetc_port_rd64(hw, ENETC_PM_TCNP(mac));
+		s->MACControlFramesReceived = enetc_port_rd64(hw, ENETC_PM_RCNP(mac));
 	} else {
-		s->MACControlFramesTransmitted = enetc_port_rd(hw, ENETC4_PM_TCNP(mac));
-		s->MACControlFramesReceived = enetc_port_rd(hw, ENETC4_PM_RCNP(mac));
+		s->MACControlFramesTransmitted = enetc_port_rd64(hw, ENETC4_PM_TCNP(mac));
+		s->MACControlFramesReceived = enetc_port_rd64(hw, ENETC4_PM_RCNP(mac));
 	}
 }
 
@@ -706,47 +722,47 @@ static void enetc_rmon_stats(struct enetc_si *si, int mac,
 	struct enetc_hw *hw = &si->hw;
 
 	if (is_enetc_rev1(si)) {
-		s->undersize_pkts = enetc_port_rd(hw, ENETC_PM_RUND(mac));
-		s->oversize_pkts = enetc_port_rd(hw, ENETC_PM_ROVR(mac));
-		s->fragments = enetc_port_rd(hw, ENETC_PM_RFRG(mac));
-		s->jabbers = enetc_port_rd(hw, ENETC_PM_RJBR(mac));
+		s->undersize_pkts = enetc_port_rd64(hw, ENETC_PM_RUND(mac));
+		s->oversize_pkts = enetc_port_rd64(hw, ENETC_PM_ROVR(mac));
+		s->fragments = enetc_port_rd64(hw, ENETC_PM_RFRG(mac));
+		s->jabbers = enetc_port_rd64(hw, ENETC_PM_RJBR(mac));
 
-		s->hist[0] = enetc_port_rd(hw, ENETC_PM_R64(mac));
-		s->hist[1] = enetc_port_rd(hw, ENETC_PM_R127(mac));
-		s->hist[2] = enetc_port_rd(hw, ENETC_PM_R255(mac));
-		s->hist[3] = enetc_port_rd(hw, ENETC_PM_R511(mac));
-		s->hist[4] = enetc_port_rd(hw, ENETC_PM_R1023(mac));
-		s->hist[5] = enetc_port_rd(hw, ENETC_PM_R1522(mac));
-		s->hist[6] = enetc_port_rd(hw, ENETC_PM_R1523X(mac));
+		s->hist[0] = enetc_port_rd64(hw, ENETC_PM_R64(mac));
+		s->hist[1] = enetc_port_rd64(hw, ENETC_PM_R127(mac));
+		s->hist[2] = enetc_port_rd64(hw, ENETC_PM_R255(mac));
+		s->hist[3] = enetc_port_rd64(hw, ENETC_PM_R511(mac));
+		s->hist[4] = enetc_port_rd64(hw, ENETC_PM_R1023(mac));
+		s->hist[5] = enetc_port_rd64(hw, ENETC_PM_R1522(mac));
+		s->hist[6] = enetc_port_rd64(hw, ENETC_PM_R1523X(mac));
 
-		s->hist_tx[0] = enetc_port_rd(hw, ENETC_PM_T64(mac));
-		s->hist_tx[1] = enetc_port_rd(hw, ENETC_PM_T127(mac));
-		s->hist_tx[2] = enetc_port_rd(hw, ENETC_PM_T255(mac));
-		s->hist_tx[3] = enetc_port_rd(hw, ENETC_PM_T511(mac));
-		s->hist_tx[4] = enetc_port_rd(hw, ENETC_PM_T1023(mac));
-		s->hist_tx[5] = enetc_port_rd(hw, ENETC_PM_T1522(mac));
-		s->hist_tx[6] = enetc_port_rd(hw, ENETC_PM_T1523X(mac));
+		s->hist_tx[0] = enetc_port_rd64(hw, ENETC_PM_T64(mac));
+		s->hist_tx[1] = enetc_port_rd64(hw, ENETC_PM_T127(mac));
+		s->hist_tx[2] = enetc_port_rd64(hw, ENETC_PM_T255(mac));
+		s->hist_tx[3] = enetc_port_rd64(hw, ENETC_PM_T511(mac));
+		s->hist_tx[4] = enetc_port_rd64(hw, ENETC_PM_T1023(mac));
+		s->hist_tx[5] = enetc_port_rd64(hw, ENETC_PM_T1522(mac));
+		s->hist_tx[6] = enetc_port_rd64(hw, ENETC_PM_T1523X(mac));
 	} else {
-		s->undersize_pkts = enetc_port_rd(hw, ENETC4_PM_RUND(mac));
-		s->oversize_pkts = enetc_port_rd(hw, ENETC4_PM_ROVR(mac));
-		s->fragments = enetc_port_rd(hw, ENETC4_PM_RFRG(mac));
-		s->jabbers = enetc_port_rd(hw, ENETC4_PM_RJBR(mac));
+		s->undersize_pkts = enetc_port_rd64(hw, ENETC4_PM_RUND(mac));
+		s->oversize_pkts = enetc_port_rd64(hw, ENETC4_PM_ROVR(mac));
+		s->fragments = enetc_port_rd64(hw, ENETC4_PM_RFRG(mac));
+		s->jabbers = enetc_port_rd64(hw, ENETC4_PM_RJBR(mac));
 
-		s->hist[0] = enetc_port_rd(hw, ENETC4_PM_R64(mac));
-		s->hist[1] = enetc_port_rd(hw, ENETC4_PM_R127(mac));
-		s->hist[2] = enetc_port_rd(hw, ENETC4_PM_R255(mac));
-		s->hist[3] = enetc_port_rd(hw, ENETC4_PM_R511(mac));
-		s->hist[4] = enetc_port_rd(hw, ENETC4_PM_R1023(mac));
-		s->hist[5] = enetc_port_rd(hw, ENETC4_PM_R1522(mac));
-		s->hist[6] = enetc_port_rd(hw, ENETC4_PM_R1523X(mac));
+		s->hist[0] = enetc_port_rd64(hw, ENETC4_PM_R64(mac));
+		s->hist[1] = enetc_port_rd64(hw, ENETC4_PM_R127(mac));
+		s->hist[2] = enetc_port_rd64(hw, ENETC4_PM_R255(mac));
+		s->hist[3] = enetc_port_rd64(hw, ENETC4_PM_R511(mac));
+		s->hist[4] = enetc_port_rd64(hw, ENETC4_PM_R1023(mac));
+		s->hist[5] = enetc_port_rd64(hw, ENETC4_PM_R1522(mac));
+		s->hist[6] = enetc_port_rd64(hw, ENETC4_PM_R1523X(mac));
 
-		s->hist_tx[0] = enetc_port_rd(hw, ENETC4_PM_T64(mac));
-		s->hist_tx[1] = enetc_port_rd(hw, ENETC4_PM_T127(mac));
-		s->hist_tx[2] = enetc_port_rd(hw, ENETC4_PM_T255(mac));
-		s->hist_tx[3] = enetc_port_rd(hw, ENETC4_PM_T511(mac));
-		s->hist_tx[4] = enetc_port_rd(hw, ENETC4_PM_T1023(mac));
-		s->hist_tx[5] = enetc_port_rd(hw, ENETC4_PM_T1522(mac));
-		s->hist_tx[6] = enetc_port_rd(hw, ENETC4_PM_T1523X(mac));
+		s->hist_tx[0] = enetc_port_rd64(hw, ENETC4_PM_T64(mac));
+		s->hist_tx[1] = enetc_port_rd64(hw, ENETC4_PM_T127(mac));
+		s->hist_tx[2] = enetc_port_rd64(hw, ENETC4_PM_T255(mac));
+		s->hist_tx[3] = enetc_port_rd64(hw, ENETC4_PM_T511(mac));
+		s->hist_tx[4] = enetc_port_rd64(hw, ENETC4_PM_T1023(mac));
+		s->hist_tx[5] = enetc_port_rd64(hw, ENETC4_PM_T1522(mac));
+		s->hist_tx[6] = enetc_port_rd64(hw, ENETC4_PM_T1523X(mac));
 	}
 }
 
