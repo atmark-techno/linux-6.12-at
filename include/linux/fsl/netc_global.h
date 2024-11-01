@@ -58,10 +58,16 @@ static inline int netc_ierb_may_wakeonlan(void)
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK_NETC)
 int netc_timer_get_phc_index(struct pci_dev *timer_pdev);
+u64 netc_timer_get_current_time(struct pci_dev *timer_dev);
 #else
 static inline int netc_timer_get_phc_index(struct pci_dev *timer_pdev)
 {
 	return -1;
+}
+
+static inline u64 netc_timer_get_current_time(struct pci_dev *timer_dev)
+{
+	return 0;
 }
 #endif
 
