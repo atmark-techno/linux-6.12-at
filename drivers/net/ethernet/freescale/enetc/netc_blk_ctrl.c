@@ -98,8 +98,6 @@ struct netc_blk_ctrl {
 	atomic_t wakeonlan_count;
 	struct platform_device *pdev;
 	struct dentry *debugfs_root;
-
-	struct device *emdio;
 };
 
 static struct netc_blk_ctrl *netc_bc;
@@ -447,37 +445,6 @@ static int netc_ierb_init(struct platform_device *pdev)
 	return 0;
 }
 
-void netc_emdio_supplier_register(struct device *emdio)
-{
-	netc_bc->emdio = emdio;
-}
-EXPORT_SYMBOL_GPL(netc_emdio_supplier_register);
-
-int netc_check_emdio_state(void)
-{
-	if (!netc_bc->emdio)
-		return -EPROBE_DEFER;
-
-	if (IS_ERR(netc_bc->emdio))
-		return PTR_ERR(netc_bc->emdio);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(netc_check_emdio_state);
-
-int netc_emdio_consumer_register(struct device *consumer)
-{
-	struct device_link *link;
-
-	link = device_link_add(consumer, netc_bc->emdio, DL_FLAG_PM_RUNTIME |
-			       DL_FLAG_AUTOREMOVE_SUPPLIER);
-	if (!link)
-		return -EINVAL;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(netc_emdio_consumer_register);
-
 void netc_ierb_enable_wakeonlan(void)
 {
 	struct netc_blk_ctrl *priv = netc_bc;
@@ -604,11 +571,6 @@ static int netc_blk_ctrl_probe(struct platform_device *pdev)
 	struct netc_blk_ctrl *priv;
 	void __iomem *regs;
 	int err;
-
-	if (!node || !of_device_is_available(node)) {
-		dev_info(dev, "Device is disabled, skipping\n");
-		return -ENODEV;
-	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
