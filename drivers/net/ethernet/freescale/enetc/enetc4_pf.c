@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /* Copyright 2023 NXP */
 #include <linux/module.h>
+#include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
 #include <linux/clk.h>
@@ -1415,6 +1416,58 @@ static void enetc4_pf_struct_deinit(struct enetc_pf *pf)
 	kfree(pf->vf_state);
 }
 
+static bool enetc_is_emdio_consumer(const struct device_node *np)
+{
+	struct device_node *phy_node, *mdio_node;
+
+	/* If the node does not have phy-handle property, then the PF
+	 * does not connect to a PHY, so it is not the EMDIO consumer.
+	 */
+	phy_node = of_parse_phandle(np, "phy-handle", 0);
+	if (!phy_node)
+		return false;
+
+	of_node_put(phy_node);
+
+	/* If the node has phy-handle property and it contains a mdio
+	 * child node, then the PF is not the EMDIO consumer.
+	 */
+	mdio_node = of_get_child_by_name(np, "mdio");
+	if (mdio_node) {
+		of_node_put(mdio_node);
+		return false;
+	}
+
+	return true;
+}
+
+static int enetc_add_emdio_consumer(struct pci_dev *pdev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *phy_node;
+	struct phy_device *phydev;
+	struct device_link *link;
+
+	if (!node || !enetc_is_emdio_consumer(node))
+		return 0;
+
+	phy_node = of_parse_phandle(node, "phy-handle", 0);
+	phydev = of_phy_find_device(phy_node);
+	of_node_put(phy_node);
+	if (!phydev)
+		return -EPROBE_DEFER;
+
+	link = device_link_add(dev, phydev->mdio.bus->parent,
+			       DL_FLAG_PM_RUNTIME |
+			       DL_FLAG_AUTOREMOVE_SUPPLIER);
+	put_device(&phydev->mdio.dev);
+	if (!link)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int enetc4_pf_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *ent)
 {
@@ -1426,6 +1479,10 @@ static int enetc4_pf_probe(struct pci_dev *pdev,
 
 	if (enetc_pf_is_owned_by_mcore(pdev))
 		return 0;
+
+	err = enetc_add_emdio_consumer(pdev);
+	if (err)
+		return err;
 
 	pinctrl_pm_select_default_state(dev);
 
