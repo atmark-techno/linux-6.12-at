@@ -174,6 +174,29 @@ static void enetc4_allocate_si_rings(struct enetc_pf *pf)
 	}
 }
 
+static void enetc4_pf_set_si_vlan_promisc(struct enetc_hw *hw, int si, bool en)
+{
+	u32 val = enetc_port_rd(hw, ENETC4_PSIPVMR);
+
+	if (en)
+		val |= BIT(si);
+	else
+		val &= ~BIT(si);
+
+	enetc_port_wr(hw, ENETC4_PSIPVMR, val);
+}
+
+static void enetc4_set_default_si_vlan_promisc(struct enetc_pf *pf)
+{
+	struct enetc_hw *hw = &pf->si->hw;
+	int num_si = pf->caps.num_vsi + 1;
+	int i;
+
+	/* enforce VLAN promiscuous mode for all SIs */
+	for (i = 0; i < num_si; i++)
+		enetc4_pf_set_si_vlan_promisc(hw, i, true);
+}
+
 static void enetc4_port_si_configure(struct enetc_pf *pf)
 {
 	struct enetc_hw *hw = &pf->si->hw;
@@ -184,9 +207,7 @@ static void enetc4_port_si_configure(struct enetc_pf *pf)
 	enetc_port_wr(hw, ENETC4_PSIVLANFMR, PSIVLANFMR_VS);
 
 	/* enforce VLAN promisc mode for all SIs */
-	pf->vlan_promisc_simap = ENETC_VLAN_PROMISC_MAP_ALL;
-	if (pf->hw_ops->set_si_vlan_promisc)
-		pf->hw_ops->set_si_vlan_promisc(hw, pf->vlan_promisc_simap);
+	enetc4_set_default_si_vlan_promisc(pf);
 
 	/* Disable SI MAC multicast & unicast promiscuous */
 	enetc_port_wr(hw, ENETC4_PSIPMMR, 0);
@@ -814,15 +835,6 @@ static void enetc4_pf_set_si_anti_spoofing(struct enetc_hw *hw, int si, bool en)
 
 	val = (val & ~PSICFGR0_ANTI_SPOOFING) | (en ? PSICFGR0_ANTI_SPOOFING : 0);
 	enetc_port_wr(hw, ENETC4_PSICFGR0(si), val);
-}
-
-static void enetc4_pf_set_si_vlan_promisc(struct enetc_hw *hw, char si_map)
-{
-	u32 val = enetc_port_rd(hw, ENETC4_PSIPVMR);
-
-	val = u32_replace_bits(val, ENETC_PSIPVMR_SET_VP(si_map),
-			       ENETC_VLAN_PROMISC_MAP_ALL);
-	enetc_port_wr(hw, ENETC4_PSIPVMR, val);
 }
 
 static void enetc4_pf_set_si_mac_promisc(struct enetc_hw *hw, int si, int type, bool en)

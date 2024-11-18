@@ -123,13 +123,8 @@ static void enetc_set_si_vlan_promisc(struct enetc_pf *pf, int index, bool en)
 {
 	struct enetc_hw *hw = &pf->si->hw;
 
-	if (en)
-		pf->vlan_promisc_simap |= BIT(index);
-	else
-		pf->vlan_promisc_simap &= ~BIT(index);
-
 	if (pf->hw_ops->set_si_vlan_promisc)
-		pf->hw_ops->set_si_vlan_promisc(hw, pf->vlan_promisc_simap);
+		pf->hw_ops->set_si_vlan_promisc(hw, index, en);
 }
 
 int enetc_vlan_rx_add_vid(struct net_device *ndev, __be16 prot, u16 vid)
