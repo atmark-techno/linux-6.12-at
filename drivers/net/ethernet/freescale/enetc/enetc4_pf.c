@@ -221,6 +221,20 @@ static void enetc4_set_isit_key_construct_rule(struct enetc_hw *hw)
 	enetc_port_wr(hw, ENETC4_PISIDCR, val);
 }
 
+static void enetc4_enable_all_si(struct enetc_pf *pf)
+{
+	struct enetc_hw *hw = &pf->si->hw;
+	int num_si = pf->caps.num_vsi + 1;
+	u32 si_bitmap = 0;
+	int i;
+
+	/* Master enable for all SIs */
+	for (i = 0; i < num_si; i++)
+		si_bitmap |= PMR_SI_EN(i);
+
+	enetc_port_wr(hw, ENETC4_PMR, si_bitmap);
+}
+
 static void enetc4_configure_port(struct enetc_pf *pf)
 {
 	struct enetc_hw *hw = &pf->si->hw;
@@ -234,7 +248,7 @@ static void enetc4_configure_port(struct enetc_pf *pf)
 	enetc4_set_isit_key_construct_rule(hw);
 
 	/* Master enable for all SIs */
-	enetc_port_wr(hw, ENETC4_PMR, PMR_SI0_EN | PMR_SI1_EN | PMR_SI2_EN);
+	enetc4_enable_all_si(pf);
 
 	/* Enable port transmit/receive */
 	enetc_port_wr(hw, ENETC4_POR, 0);

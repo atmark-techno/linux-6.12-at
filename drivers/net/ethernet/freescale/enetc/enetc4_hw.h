@@ -61,9 +61,7 @@
 #define  ECAPR2_NUM_RX_BDR	GENMASK(25, 16)
 
 #define ENETC4_PMR		0x10
-#define  PMR_SI0_EN		BIT(16)
-#define  PMR_SI1_EN		BIT(17)
-#define  PMR_SI2_EN		BIT(18)
+#define  PMR_SI_EN(a)		BIT((16 + (a)))
 
 /* Port Pause ON/OFF threshold register */
 #define ENETC4_PPAUONTR		0x108
