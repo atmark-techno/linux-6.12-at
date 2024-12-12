@@ -524,6 +524,7 @@ struct enetc_ndev_priv {
 
 /* PTP driver exports */
 extern int enetc_phc_index;
+extern const struct xdp_metadata_ops enetc_xdp_metadata_ops;
 
 /* SI common */
 u32 enetc_port_mac_rd(struct enetc_si *si, u32 reg);
