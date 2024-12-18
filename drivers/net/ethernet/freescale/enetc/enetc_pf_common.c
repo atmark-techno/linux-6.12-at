@@ -1133,8 +1133,10 @@ static void enetc_vlan_list_del_matched_entries(struct enetc_pf *pf, u16 si_bit,
 static void enetc_vfe_to_vaft_data(struct enetc_vfe *vfe,
 				   struct vaft_entry_data *vaft)
 {
-	vaft->keye.tpid = vfe->tpid;
-	vaft->keye.vlan_id = cpu_to_le16(vfe->vid);
+	u16 vid = FIELD_PREP(VAFT_VLAN_ID, vfe->vid);
+
+	vaft->keye.tpid = FIELD_PREP(VAFT_TPID, vfe->tpid);
+	vaft->keye.vlan_id = cpu_to_le16(vid);
 	vaft->cfge.si_bitmap = cpu_to_le16(vfe->si_bitmap);
 }
 

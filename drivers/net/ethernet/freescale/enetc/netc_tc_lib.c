@@ -5,6 +5,8 @@
  */
 #include <linux/fsl/netc_lib.h>
 
+#include "ntmp_private.h"
+
 #define SDU_TYPE_MPDU				1
 
 struct netc_flower_rule *
@@ -116,7 +118,7 @@ static int netc_psfp_flower_key_validate(struct ntmp_priv *priv,
 			continue;
 
 		if (tmp_rule->isft_entry &&
-		    tmp_rule->isft_entry->keye.pcp == prio) {
+		    FIELD_GET(ISFT_PCP, tmp_rule->isft_entry->keye.pcp) == prio) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "The same key has been used by existing rule");
 			return -EINVAL;
@@ -141,13 +143,13 @@ static int netc_psfp_gate_entry_validate(struct ntmp_priv *priv,
 	}
 
 	num_gates = gate_entry->gate.num_entries;
-	if (num_gates > NTMP_SGCLT_MAX_GE_NUM) {
+	if (num_gates > SGCLT_MAX_GE_NUM) {
 		NL_SET_ERR_MSG_MOD(extack, "Gate number exceeds 256");
 		return -EINVAL;
 	}
 
 	max_cycle_time = gate_entry->gate.cycletime + gate_entry->gate.cycletimeext;
-	if (max_cycle_time > NTMP_SGIT_MAX_CT_PLUS_CT_EXT) {
+	if (max_cycle_time > SGIT_MAX_CT_PLUS_CT_EXT) {
 		NL_SET_ERR_MSG_MOD(extack, "Max cycle time exceeds 0x3ffffff ns");
 		return -EINVAL;
 	}
@@ -230,11 +232,12 @@ static int netc_psfp_isit_keye_construct(struct flow_rule *rule, int port_index,
 	struct flow_match_eth_addrs addr_match = {0};
 	struct flow_match_vlan vlan_match = {0};
 	struct isit_psfp_frame_key *frame_key;
+	u32 key_aux;
 	u16 vlan;
 
 	frame_key = (struct isit_psfp_frame_key *)keye->frame_key;
 	/* For ENETC, the port_index should be 0 */
-	keye->src_port_id = port_index;
+	key_aux = FIELD_PREP(ISIT_SRC_PORT_ID, port_index);
 
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported, must include ETH_ADDRS");
@@ -257,7 +260,7 @@ static int netc_psfp_isit_keye_construct(struct flow_rule *rule, int port_index,
 		}
 
 		ether_addr_copy(frame_key->mac, addr_match.key->dst);
-		keye->key_type = NTMP_ISIT_KEY_TYPE1_DMAC_VLAN;
+		key_aux |= FIELD_PREP(ISIT_KEY_TYPE, ISIT_KEY_TYPE1_DMAC_VLAN);
 	}
 
 	if (!is_zero_ether_addr(addr_match.mask->src)) {
@@ -268,8 +271,10 @@ static int netc_psfp_isit_keye_construct(struct flow_rule *rule, int port_index,
 		}
 
 		ether_addr_copy(frame_key->mac, addr_match.key->src);
-		keye->key_type = NTMP_ISIT_KEY_TYPE0_SMAC_VLAN;
+		key_aux |= FIELD_PREP(ISIT_KEY_TYPE, ISIT_KEY_TYPE0_SMAC_VLAN);
 	}
+
+	keye->key_aux = cpu_to_le32(key_aux);
 
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN))
 		return 0;
@@ -309,6 +314,8 @@ static void netc_psfp_gate_entry_config(struct ntmp_priv *priv,
 {
 	u32 cycle_time, cycle_time_ext, num_gates;
 	u64 base_time = gate_entry->gate.basetime;
+	u8 sgit_cfg, sgit_icfg = SGIT_GST;
+	u8 sgclt_extcfg = SGCLT_EXT_GTST;
 	int i;
 
 	num_gates = gate_entry->gate.num_entries;
@@ -316,48 +323,49 @@ static void netc_psfp_gate_entry_config(struct ntmp_priv *priv,
 	cycle_time_ext = gate_entry->gate.cycletimeext;
 
 	if (gate_entry->gate.prio >= 0) {
-		sgit_entry->icfge.ipv = gate_entry->gate.prio;
-		sgit_entry->icfge.oipv = 1;
+		sgit_icfg |= FIELD_PREP(SGIT_IPV, gate_entry->gate.prio);
+		sgit_icfg |= SGIT_OIPV;
 	}
 
 	if (priv->adjust_base_time)
 		base_time = priv->adjust_base_time(priv, base_time,
 						   gate_entry->gate.cycletime);
 
+	sgit_cfg = FIELD_PREP(SGIT_SDU_TYPE, SDU_TYPE_MPDU);
 	sgit_entry->acfge.admin_base_time = cpu_to_le64(base_time);
 	sgit_entry->acfge.admin_sgcl_eid = cpu_to_le32(sgclt_entry->entry_id);
 	sgit_entry->acfge.admin_cycle_time_ext = cpu_to_le32(cycle_time_ext);
-	sgit_entry->cfge.sdu_type = SDU_TYPE_MPDU;
-	sgit_entry->icfge.gst = NTMP_STREAM_GATE_STATE_OPEN;
+	sgit_entry->cfge.cfg = sgit_cfg;
+	sgit_entry->icfge.icfg = sgit_icfg;
 
 	sgclt_entry->cfge.cycle_time = cpu_to_le32(cycle_time);
 	sgclt_entry->cfge.list_length = num_gates - 1;
-	sgclt_entry->cfge.ext_gtst = NTMP_STREAM_GATE_STATE_OPEN;
 	if (gate_entry->gate.prio >= 0) {
-		sgclt_entry->cfge.ext_ipv = gate_entry->gate.prio;
-		sgclt_entry->cfge.ext_oipv = 1;
+		sgclt_extcfg |= FIELD_PREP(SGCLT_EXT_IPV, gate_entry->gate.prio);
+		sgclt_extcfg |= SGCLT_EXT_OIPV;
 	}
+	sgclt_entry->cfge.ext_cfg = sgclt_extcfg;
 
 	for (i = 0; i < num_gates; i++) {
 		struct action_gate_entry *from = &gate_entry->gate.entries[i];
 		struct sgclt_ge *to = &sgclt_entry->cfge.ge[i];
+		u32 sgclt_cfg = 0;
 
 		if (from->gate_state)
-			to->gtst = NTMP_STREAM_GATE_STATE_OPEN;
+			sgclt_cfg |= SGCLT_GTST;
 
 		if (from->ipv >= 0) {
-			to->oipv = 1;
-			to->ipv = from->ipv & 0x7;
+			sgclt_cfg |= FIELD_PREP(SGCLT_IPV, from->ipv);
+			sgclt_cfg |= SGCLT_OIPV;
 		}
 
 		if (from->maxoctets >= 0) {
-			to->iomen = 1;
-			to->iom[0] = from->maxoctets & 0xff;
-			to->iom[1] = (from->maxoctets >> 8) & 0xff;
-			to->iom[2] = (from->maxoctets >> 16) & 0xff;
+			sgclt_cfg |= FIELD_PREP(SGCLT_IOM, from->maxoctets);
+			sgclt_cfg |= SGCLT_IOMEN;
 		}
 
 		to->interval = cpu_to_le32(from->interval);
+		to->cfg = cpu_to_le32(sgclt_cfg);
 	}
 }
 
@@ -366,6 +374,7 @@ void netc_rpt_entry_config(struct flow_action_entry *police_entry,
 {
 	u64 rate_bps;
 	u32 cir, cbs;
+	u16 cfg;
 
 	rpt_entry->entry_id = police_entry->hw_index;
 
@@ -375,10 +384,11 @@ void netc_rpt_entry_config(struct flow_action_entry *police_entry,
 	rate_bps = police_entry->police.rate_bytes_ps * 8;
 	cir = div_u64(rate_bps * 1000, 3725);
 	cbs = police_entry->police.burst;
+	cfg = FIELD_PREP(RPT_SDU_TYPE, SDU_TYPE_MPDU);
 	rpt_entry->cfge.cir = cpu_to_le32(cir);
 	rpt_entry->cfge.cbs = cpu_to_le32(cbs);
-	rpt_entry->cfge.sdu_type = SDU_TYPE_MPDU;
-	rpt_entry->fee.fen = 1;
+	rpt_entry->cfge.cfg = cpu_to_le16(cfg);
+	rpt_entry->fee.fen = RPT_FEN;
 }
 EXPORT_SYMBOL_GPL(netc_rpt_entry_config);
 
@@ -394,8 +404,8 @@ static int netc_delete_sgclt_entry(struct ntmp_priv *priv, u32 entry_id)
 		return 0;
 
 	max_cfge_size = struct_size_t(struct sgclt_cfge_data, ge,
-				      NTMP_SGCLT_MAX_GE_NUM);
-	max_data_size = struct_size(sgclt_entry, cfge.ge, NTMP_SGCLT_MAX_GE_NUM);
+				      SGCLT_MAX_GE_NUM);
+	max_data_size = struct_size(sgclt_entry, cfge.ge, SGCLT_MAX_GE_NUM);
 	sgclt_entry = kzalloc(max_data_size, GFP_KERNEL);
 	if (!sgclt_entry)
 		return -ENOMEM;
@@ -569,7 +579,7 @@ static int netc_add_psfp_key_tbl(struct ntmp_priv *priv,
 	struct netc_flower_key_tbl *new_tbl __free(kfree);
 	struct ntmp_isit_entry *isit_entry __free(kfree);
 	struct ntmp_ist_entry *ist_entry __free(kfree);
-	struct ist_cfge_data *cfge;
+	u32 ist_cfg = 0;
 
 	new_tbl = kzalloc(sizeof(*new_tbl), GFP_KERNEL);
 	if (!new_tbl)
@@ -593,21 +603,22 @@ static int netc_add_psfp_key_tbl(struct ntmp_priv *priv,
 		return -ENOSPC;
 	}
 
-	cfge = &ist_entry->cfge;
 	switch (priv->cbdrs.tbl.ist_ver) {
-	case NTMP_TBL_VER1:
-		if (priv->dev_type == NETC_DEV_SWITCH)
-			cfge->v1.fa = NTMP_IST_SWITCH_FA_BF;
-		else
-			cfge->v1.fa = NTMP_IST_FA_NO_SI_BITMAP;
-		cfge->v1.sdu_type = SDU_TYPE_MPDU;
-		break;
 	case NTMP_TBL_VER0:
 		if (priv->dev_type == NETC_DEV_SWITCH)
-			cfge->fa = NTMP_IST_SWITCH_FA_BF;
+			ist_cfg |= FIELD_PREP(IST_V0_FA, IST_SWITCH_FA_BF);
 		else
-			cfge->fa = NTMP_IST_FA_NO_SI_BITMAP;
-		cfge->sdu_type = SDU_TYPE_MPDU;
+			ist_cfg |= FIELD_PREP(IST_V0_FA, IST_FA_NO_SI_BITMAP);
+
+		ist_cfg |= FIELD_PREP(IST_V0_SDU_TYPE, SDU_TYPE_MPDU);
+		break;
+	case NTMP_TBL_VER1:
+		if (priv->dev_type == NETC_DEV_SWITCH)
+			ist_cfg |= FIELD_PREP(IST_V1_FA, IST_SWITCH_FA_BF);
+		else
+			ist_cfg |= FIELD_PREP(IST_V1_FA, IST_FA_NO_SI_BITMAP);
+
+		ist_cfg |= FIELD_PREP(IST_V1_SDU_TYPE, SDU_TYPE_MPDU);
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(extack, "Unknown IST version");
@@ -617,6 +628,7 @@ static int netc_add_psfp_key_tbl(struct ntmp_priv *priv,
 		return -EINVAL;
 	}
 
+	ist_entry->cfge.cfg = cpu_to_le32(ist_cfg);
 	netc_init_ist_entry_eids(priv, ist_entry);
 
 	isit_entry->is_eid = cpu_to_le32(ist_entry->entry_id);
@@ -678,8 +690,8 @@ int netc_setup_psfp(struct ntmp_priv *priv, int port_id,
 	struct ntmp_isit_entry *isit_entry;
 	u32 ist_eid, sgclt_eid, isct_eid;
 	unsigned long cookie = f->cookie;
+	u32 ist_cfg = 0, num_gates;
 	int i, err, priority = -1;
-	u32 num_gates;
 	u16 msdu = 0;
 
 	guard(mutex)(&priv->flower_lock);
@@ -731,6 +743,7 @@ int netc_setup_psfp(struct ntmp_priv *priv, int port_id,
 		isit_entry = key_tbl->isit_entry;
 		ist_entry = key_tbl->ist_entry;
 		ist_eid = ist_entry->entry_id;
+		ist_cfg = le32_to_cpu(ist_entry->cfge.cfg);
 	} else {
 		ist_eid = reused_key_tbl->ist_entry->entry_id;
 	}
@@ -797,6 +810,8 @@ int netc_setup_psfp(struct ntmp_priv *priv, int port_id,
 
 	/* Determine if an ingress stream filter entry is required */
 	if (priority >= 0) {
+		u16 isft_cfg = FIELD_PREP(ISFT_SDU_TYPE, SDU_TYPE_MPDU);
+
 		isft_entry = kzalloc(sizeof(*isft_entry), GFP_KERNEL);
 		if (!isft_entry) {
 			err = -ENOMEM;
@@ -804,32 +819,36 @@ int netc_setup_psfp(struct ntmp_priv *priv, int port_id,
 		}
 
 		isft_entry->keye.is_eid = cpu_to_le32(ist_eid);
-		isft_entry->keye.pcp = priority;
-		isft_entry->cfge.sdu_type = SDU_TYPE_MPDU;
+		isft_entry->keye.pcp = FIELD_PREP(ISFT_PCP, priority);
 		isft_entry->cfge.msdu = cpu_to_le16(msdu);
 		isft_entry->cfge.isc_eid = cpu_to_le32(isct_eid);
 		isft_entry->cfge.sgi_eid = cpu_to_le32(sgit_entry->entry_id);
 		isft_entry->cfge.rp_eid = cpu_to_le32(NTMP_NULL_ENTRY_ID);
-		isft_entry->cfge.osgi = 1;
+		isft_cfg |= ISFT_OSGI;
 
 		if (rpt_entry) {
-			isft_entry->cfge.orp = 1;
+			isft_cfg |= ISFT_ORP;
 			isft_entry->cfge.rp_eid = cpu_to_le32(rpt_entry->entry_id);
 		}
 
+		isft_entry->cfge.cfg = cpu_to_le16(isft_cfg);
+
 		if (ist_entry)
-			ist_entry->cfge.sfe = 1; /* Enable stream filter */
+			ist_cfg |= IST_SFE; /* Enable stream filter */
 	} else if (ist_entry) {
+		ist_cfg |= IST_OSGI;
 		ist_entry->cfge.msdu = cpu_to_le16(msdu);
-		ist_entry->cfge.osgi = 1;
 		ist_entry->cfge.isc_eid = cpu_to_le32(isct_eid);
 		ist_entry->cfge.sgi_eid = cpu_to_le32(sgit_entry->entry_id);
 
 		if (rpt_entry) {
-			ist_entry->cfge.orp = 1;
+			ist_cfg |= IST_ORP;
 			ist_entry->cfge.rp_eid = cpu_to_le32(rpt_entry->entry_id);
 		}
 	}
+
+	if (ist_entry)
+		ist_entry->cfge.cfg = cpu_to_le32(ist_cfg);
 
 	psfp_tbl.ist_entry = ist_entry;
 	psfp_tbl.rpt_entry = rpt_entry;

@@ -1064,8 +1064,9 @@ static int enetc4_set_wol_mg_ipft_entry(struct enetc_ndev_priv *priv)
 	struct enetc_si *si = priv->si;
 	struct ipft_keye_data *keye;
 	struct ipft_cfge_data *cfge;
+	u32 flta_tgt = BIT(0);
 	u16 frame_attr;
-	u32 val;
+	u32 cfg, val;
 	int err;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
@@ -1075,14 +1076,15 @@ static int enetc4_set_wol_mg_ipft_entry(struct enetc_ndev_priv *priv)
 	keye = &entry->keye;
 	cfge = &entry->cfge;
 
-	frame_attr = NTMP_IPFT_FAF_WOL_MAGIC;
+	frame_attr = IPFT_FAF_WOL_MAGIC;
 	keye->frm_attr_flags = cpu_to_le16(frame_attr);
 	keye->frm_attr_flags_mask = keye->frm_attr_flags;
 
-	cfge->fltfa = NTMP_IPFT_FLTFA_PERMIT;
-	cfge->wolte = 1;
-	cfge->flta = NTMP_IPFT_FLTA_SI_BITMAP;
-	cfge->flta_tgt = 1;
+	cfg = FIELD_PREP(IPFT_FLTFA, IPFT_FLTFA_PERMIT);
+	cfg |= IPFT_WOLTE;
+	cfg |= FIELD_PREP(IPFT_FLTA, IPFT_FLTA_SI_BITMAP);
+	cfge->cfg = cpu_to_le32(cfg);
+	cfge->flta_tgt = cpu_to_le32(flta_tgt);
 
 	err = ntmp_ipft_add_entry(&si->ntmp.cbdrs, &priv->ipt_wol_eid, entry);
 	if (err)
@@ -1109,6 +1111,7 @@ static int enetc4_set_ipft_entry(struct enetc_si *si, struct ethtool_rx_flow_spe
 	struct ipft_keye_data *keye;
 	struct ipft_cfge_data *cfge;
 	u16 frame_attr = 0;
+	u32 cfg = 0;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
@@ -1126,7 +1129,7 @@ static int enetc4_set_ipft_entry(struct enetc_si *si, struct ethtool_rx_flow_spe
 		int i;
 		u8 *p;
 
-		if (sizeof(h_ext->data) > NTMP_IPFT_MAX_PLD_LEN)
+		if (sizeof(h_ext->data) > IPFT_MAX_PLD_LEN)
 			return -EOPNOTSUPP;
 
 		h_ext = &fs->h_ext;
@@ -1142,21 +1145,22 @@ static int enetc4_set_ipft_entry(struct enetc_si *si, struct ethtool_rx_flow_spe
 	case TCP_V4_FLOW:
 		l4ip4_h = &fs->h_u.tcp_ip4_spec;
 		l4ip4_m = &fs->m_u.tcp_ip4_spec;
-		frame_attr = NTMP_IPFT_FAF_IP_HDR | NTMP_IPFT_FAF_TCP_HDR;
+		frame_attr |= FIELD_PREP(IPFT_FAF_L4_CODE, IPFT_FAF_TCP_HDR);
 		keye->ip_protocol = IPPROTO_TCP;
 		goto l4ip4;
 	case UDP_V4_FLOW:
 		l4ip4_h = &fs->h_u.udp_ip4_spec;
 		l4ip4_m = &fs->m_u.udp_ip4_spec;
-		frame_attr = NTMP_IPFT_FAF_IP_HDR | NTMP_IPFT_FAF_UDP_HDR;
+		frame_attr |= FIELD_PREP(IPFT_FAF_L4_CODE, IPFT_FAF_UDP_HDR);
 		keye->ip_protocol = IPPROTO_UDP;
 		goto l4ip4;
 	case SCTP_V4_FLOW:
 		l4ip4_h = &fs->h_u.sctp_ip4_spec;
 		l4ip4_m = &fs->m_u.sctp_ip4_spec;
-		frame_attr = NTMP_IPFT_FAF_IP_HDR | NTMP_IPFT_FAF_SCTP_HDR;
+		frame_attr |= FIELD_PREP(IPFT_FAF_L4_CODE, IPFT_FAF_SCTP_HDR);
 		keye->ip_protocol = IPPROTO_SCTP;
 l4ip4:
+		frame_attr |= IPFT_FAF_IP_HDR;
 		keye->ip_protocol_mask = 0xff;
 		keye->ip_src[3] = l4ip4_h->ip4src;
 		keye->ip_src_mask[3] = l4ip4_m->ip4src;
@@ -1172,25 +1176,23 @@ l4ip4:
 	case TCP_V6_FLOW:
 		l4ip6_h = &fs->h_u.tcp_ip6_spec;
 		l4ip6_m = &fs->m_u.tcp_ip6_spec;
-		frame_attr = NTMP_IPFT_FAF_IP_HDR | NTMP_IPFT_FAF_IP_VER6 |
-			     NTMP_IPFT_FAF_TCP_HDR;
+		frame_attr = FIELD_PREP(IPFT_FAF_L4_CODE, IPFT_FAF_TCP_HDR);
 		keye->ip_protocol = IPPROTO_TCP;
 		goto l4ip6;
 	case UDP_V6_FLOW:
 		l4ip6_h = &fs->h_u.udp_ip6_spec;
 		l4ip6_m = &fs->m_u.udp_ip6_spec;
-		frame_attr = NTMP_IPFT_FAF_IP_HDR | NTMP_IPFT_FAF_IP_VER6 |
-			     NTMP_IPFT_FAF_UDP_HDR;
+		frame_attr = FIELD_PREP(IPFT_FAF_L4_CODE, IPFT_FAF_UDP_HDR);
 		keye->ip_protocol = IPPROTO_UDP;
 		goto l4ip6;
 	case SCTP_V6_FLOW:
 		l4ip6_h = &fs->h_u.sctp_ip6_spec;
 		l4ip6_m = &fs->m_u.sctp_ip6_spec;
-		frame_attr = NTMP_IPFT_FAF_IP_HDR | NTMP_IPFT_FAF_IP_VER6 |
-			     NTMP_IPFT_FAF_SCTP_HDR;
+		frame_attr = FIELD_PREP(IPFT_FAF_L4_CODE, IPFT_FAF_SCTP_HDR);
 		keye->ip_protocol = IPPROTO_SCTP;
 
 l4ip6:
+		frame_attr |= IPFT_FAF_IP_HDR | IPFT_FAF_IP_VER6;
 		keye->ip_protocol_mask = 0xff;
 		memcpy(keye->ip_src, l4ip6_h->ip6src, sizeof(keye->ip_src));
 		memcpy(keye->ip_src_mask, l4ip6_m->ip6src, sizeof(keye->ip_src_mask));
@@ -1206,7 +1208,7 @@ l4ip6:
 	case IP_USER_FLOW:
 		l3ip4_h = &fs->h_u.usr_ip4_spec;
 		l3ip4_m = &fs->m_u.usr_ip4_spec;
-		keye->frm_attr_flags = NTMP_IPFT_FAF_IP_HDR;
+		frame_attr |= IPFT_FAF_IP_HDR;
 		keye->ip_src[3] = l3ip4_h->ip4src;
 		keye->ip_src_mask[3] = l3ip4_m->ip4src;
 		keye->ip_dst[3] = l3ip4_h->ip4dst;
@@ -1219,7 +1221,7 @@ l4ip6:
 	case IPV6_USER_FLOW:
 		l3ip6_h = &fs->h_u.usr_ip6_spec;
 		l3ip6_m = &fs->m_u.usr_ip6_spec;
-		keye->frm_attr_flags = NTMP_IPFT_FAF_IP_HDR | NTMP_IPFT_FAF_IP_VER6;
+		frame_attr |= IPFT_FAF_IP_HDR | IPFT_FAF_IP_VER6;
 		memcpy(keye->ip_src, l3ip6_h->ip6src, sizeof(keye->ip_src));
 		memcpy(keye->ip_src_mask, l3ip6_m->ip6src, sizeof(keye->ip_src_mask));
 		memcpy(keye->ip_dst, l3ip6_h->ip6dst, sizeof(keye->ip_dst));
@@ -1246,15 +1248,15 @@ l4ip6:
 	keye->frm_attr_flags_mask = keye->frm_attr_flags;
 
 	if (fs->ring_cookie == RX_CLS_FLOW_WAKE) {
-		cfge->fltfa = NTMP_IPFT_FLTFA_PERMIT;
-		cfge->wolte = 1;
-		cfge->flta = NTMP_IPFT_FLTA_SI_BITMAP;
-		cfge->flta_tgt = 1;
+		cfg |= FIELD_PREP(IPFT_FLTFA, IPFT_FLTFA_PERMIT);
+		cfg |= IPFT_WOLTE;
+		cfg |= FIELD_PREP(IPFT_FLTA, IPFT_FLTA_SI_BITMAP);
+		cfge->flta_tgt = cpu_to_le32(1);
 	} else if (fs->ring_cookie == RX_CLS_FLOW_DISC) {
-		cfge->fltfa = NTMP_IPFT_FLTFA_DISCARD;
-		cfge->wolte = 0;
-		cfge->flta = NTMP_IPFT_FLTA_NO_ACTION;
+		cfg |= FIELD_PREP(IPFT_FLTFA, IPFT_FLTFA_DISCARD);
 	}
+
+	cfge->cfg = cpu_to_le32(cfg);
 
 	return ntmp_ipft_add_entry(&si->ntmp.cbdrs, entry_id, entry);
 }
