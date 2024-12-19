@@ -1023,11 +1023,6 @@ static u16 enetc_msg_pf_set_vf_mac_promisc_mode(struct enetc_pf *pf, int vf_id)
 	int si_id = vf_id + 1;
 	int mac_type;
 
-	if (!enetc_pf_is_vf_trusted(pf, vf_id)) {
-		pf_msg.class_id = ENETC_MSG_CLASS_ID_PERMISSION_DENY;
-		return pf_msg.code;
-	}
-
 	if (!pf->hw_ops->set_si_mac_promisc) {
 		pf_msg.class_id = ENETC_MSG_CLASS_ID_CMD_NOT_SUPPORT;
 		return pf_msg.code;
@@ -1041,8 +1036,15 @@ static u16 enetc_msg_pf_set_vf_mac_promisc_mode(struct enetc_pf *pf, int vf_id)
 	else
 		mac_type = ENETC_MAC_FILTER_TYPE_ALL;
 
-	if (msg->promisc_mode == ENETC_MAC_PROMISC_MODE_ENABLE)
+	if (msg->promisc_mode == ENETC_MAC_PROMISC_MODE_ENABLE) {
+		if (!enetc_pf_is_vf_trusted(pf, vf_id)) {
+			pf_msg.class_id = ENETC_MSG_CLASS_ID_PERMISSION_DENY;
+
+			return pf_msg.code;
+		}
+
 		promisc_mode = true;
+	}
 
 	if (msg->flush_macs)
 		enetc_pf_flush_si_mac_filter(pf, si_id, msg->type);
