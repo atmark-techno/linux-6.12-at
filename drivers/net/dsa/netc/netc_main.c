@@ -274,7 +274,7 @@ static int netc_port_create_internal_mdiobus(struct netc_port *port)
 		goto free_mdiobus;
 	}
 
-	/* TODO: xpcs_create_mdiodev_with_phy() should be refactored for i.MX94 */
+	netc_xpcs_port_init(port->index);
 	pcs = xpcs_create_mdiodev_with_phy(bus, 0, 16, port->phy_mode);
 	if (IS_ERR(pcs)) {
 		err = PTR_ERR(pcs);
