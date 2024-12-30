@@ -252,7 +252,7 @@ static int imx95_pcie_init_phy(struct imx_pcie *imx_pcie)
 	 * Workaround: Set SS_RW_REG_1[SYS_AUX_PWR_DET] to 1.
 	 */
 	regmap_update_bits(imx_pcie->iomuxc_gpr, IMX95_PCIE_SS_RW_REG_1,
-			IMX95_PCIE_SYS_AUX_PWR_DET, IMX95_PCIE_PHY_CR_PARA_SEL);
+			IMX95_PCIE_SYS_AUX_PWR_DET, IMX95_PCIE_SYS_AUX_PWR_DET);
 
 	regmap_update_bits(imx_pcie->iomuxc_gpr,
 			IMX95_PCIE_SS_RW_REG_0,
