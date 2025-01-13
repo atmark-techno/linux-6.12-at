@@ -33,6 +33,35 @@ static inline int scmi_imx_misc_ctrl_set(u32 id, u32 val)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_IMX_SCMI_CPU_EXT)
+extern int scmi_imx_cpu_start(u32 cpuid);
+extern int scmi_imx_cpu_started(u32 cpuid, bool *started);
+extern int scmi_imx_cpu_stop(u32 cpuid);
+extern int scmi_imx_cpu_reset_vector_set(u32 cpuid, u64 vector, bool start,
+					 bool boot, bool resume);
+#else
+static inline int scmi_imx_cpu_start(u32 cpuid)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int scmi_imx_cpu_started(u32 cpuid, bool *started)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int scmi_imx_cpu_stop(u32 cpuid)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int scmi_imx_cpu_reset_vector_set(u32 cpuid, u64 vector,
+						bool start, bool boot, bool resume)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
 #if IS_ENABLED(CONFIG_IMX_SCMI_LMM_EXT)
 extern int scmi_imx_lmm_boot(u32 lmid);
 extern int scmi_imx_lmm_info(u32 lmid, struct scmi_imx_lmm_info *info);
@@ -65,5 +94,4 @@ static inline int scmi_imx_lmm_shutdown(u32 lmid, u32 flags)
 	return -EOPNOTSUPP;
 }
 #endif
-
 #endif
