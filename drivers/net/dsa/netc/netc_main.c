@@ -1577,17 +1577,21 @@ static int netc_port_del_bcast_fdb_entry(struct netc_port *port, u16 vid)
 	return netc_port_del_fdb_entry(port, bcast, vid);
 }
 
+static struct net_device *netc_port_get_net_device(struct netc_port *port)
+{
+	if (dsa_port_is_cpu(port->dp))
+		return port->dp->conduit;
+	else
+		return port->dp->user;
+}
+
 static void netc_port_set_mac_address(struct netc_port *port)
 {
 	struct net_device *ndev;
 	u32 upper;
 	u16 lower;
 
-	if (dsa_port_is_cpu(port->dp))
-		ndev = port->dp->conduit;
-	else
-		ndev = port->dp->user;
-
+	ndev = netc_port_get_net_device(port);
 	lower = get_unaligned_le16(ndev->dev_addr + 4);
 	upper = get_unaligned_le32(ndev->dev_addr);
 
@@ -2097,6 +2101,100 @@ static int netc_port_cls_flower_stats(struct dsa_switch *ds, int port_id,
 	return netc_port_flow_cls_stats(port, cls);
 }
 
+static int netc_suspend(struct dsa_switch *ds)
+{
+	struct netc_switch *priv = NETC_PRIV(ds);
+	struct pci_dev *pdev = priv->pdev;
+	int port_id;
+
+	cancel_delayed_work_sync(&priv->fdbt_clean);
+
+	for (port_id = 0; port_id < ds->num_ports; port_id++) {
+		struct netc_port *port = NETC_PORT(priv, port_id);
+		struct net_device *ndev;
+
+		if (!port->dp)
+			continue;
+
+		ndev = netc_port_get_net_device(port);
+		if (netif_running(ndev))
+			netc_port_disable(ds, port_id);
+	}
+
+	netc_destroy_fdb_list(priv);
+	netc_destroy_vlan_list(priv);
+	netc_deinit_ntmp_priv(priv);
+	pci_disable_device(pdev);
+
+	return 0;
+}
+
+static int netc_resume(struct dsa_switch *ds)
+{
+	struct netc_switch *priv = NETC_PRIV(ds);
+	struct pci_dev *pdev = priv->pdev;
+	struct device *dev = &pdev->dev;
+	struct netc_port *cpu_port;
+	int port_id, err;
+
+	pcie_flr(pdev);
+	err = pci_enable_device_mem(pdev);
+	if (err)
+		return dev_err_probe(dev, err, "Failed to enable device\n");
+
+	pci_set_master(pdev);
+
+	err = netc_init_ntmp_priv(priv);
+	if (err)
+		return err;
+
+	netc_switch_dos_default_config(priv);
+	netc_switch_vfht_default_config(priv);
+	netc_switch_isit_key_config(priv);
+
+	err = netc_switch_bpt_default_config(priv);
+	if (err)
+		goto deinit_ntmp_priv;
+
+	cpu_port = NETC_PORT(priv, ds->num_ports - 1);
+	for (port_id = 0; port_id < ds->num_ports; port_id++) {
+		struct netc_port *port = NETC_PORT(priv, port_id);
+		struct net_device *ndev;
+		u16 pvid;
+
+		if (!port->dp)
+			continue;
+
+		netc_port_default_config(port);
+		ndev = netc_port_get_net_device(port);
+		if (netif_running(ndev)) {
+			err = netc_port_enable(ds, port_id, NULL);
+			if (err)
+				goto deinit_ntmp_priv;
+
+			if (port->bridge)
+				pvid = port->vlan_aware ? NETC_CPU_PORT_PVID :
+				       NETC_VLAN_UNAWARE_PVID;
+			else
+				pvid = NETC_STANDALONE_PVID;
+
+			err = netc_port_set_fdb_entry(cpu_port, ndev->dev_addr,
+						      pvid);
+			if (err)
+				goto deinit_ntmp_priv;
+		}
+	}
+
+	schedule_delayed_work(&priv->fdbt_clean, priv->fdbt_acteu_interval);
+
+	return 0;
+
+deinit_ntmp_priv:
+	netc_deinit_ntmp_priv(priv);
+
+	return err;
+}
+
 static void netc_phylink_get_caps(struct dsa_switch *ds, int port_id,
 				  struct phylink_config *config)
 {
@@ -2444,6 +2542,8 @@ static const struct dsa_switch_ops netc_switch_ops = {
 	.get_rmon_stats			= netc_port_get_rmon_stats,
 	.get_eth_ctrl_stats		= netc_port_get_eth_ctrl_stats,
 	.get_eth_mac_stats		= netc_port_get_eth_mac_stats,
+	.resume				= netc_resume,
+	.suspend			= netc_suspend,
 };
 
 static int netc_switch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -2522,17 +2622,41 @@ static void netc_switch_remove(struct pci_dev *pdev)
 	netc_switch_pci_destroy(pdev);
 }
 
+static int __maybe_unused netc_switch_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct netc_switch *priv;
+
+	priv = pci_get_drvdata(pdev);
+
+	return dsa_switch_suspend(priv->ds);
+}
+
+static int __maybe_unused netc_switch_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct netc_switch *priv;
+
+	priv = pci_get_drvdata(pdev);
+
+	return dsa_switch_resume(priv->ds);
+}
+
 static const struct pci_device_id netc_switch_ids[] = {
 	{ PCI_DEVICE(NETC_SWITCH_VENDOR_ID, NETC_SWITCH_DEVICE_ID) },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, netc_switch_ids);
 
+static SIMPLE_DEV_PM_OPS(netc_switch_pm_ops, netc_switch_suspend,
+			 netc_switch_resume);
+
 static struct pci_driver netc_switch_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= netc_switch_ids,
 	.probe		= netc_switch_probe,
 	.remove		= netc_switch_remove,
+	.driver.pm	= pm_ptr(&netc_switch_pm_ops),
 };
 module_pci_driver(netc_switch_driver);
 
