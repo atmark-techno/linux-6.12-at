@@ -1682,6 +1682,7 @@ static void enetc4_pf_power_down(struct enetc_si *si)
 	if (pf->pcs)
 		enetc4_pf_imdio_regulator_disable(pf);
 	enetc_free_msix(priv);
+	enetc_free_cbdr(si);
 	pci_disable_device(pdev);
 	pcie_flr(pdev);
 }
