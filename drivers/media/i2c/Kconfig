@@ -669,6 +669,18 @@ config VIDEO_AP1302
          To compile this driver as a module, choose M here: the
          module will be called ap1302.
 
+config VIDEO_OG01H1B
+	tristate "OG01H1B camera sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a flag to enable support for Video4Linux2 sensor-level
+	  driver for the OG01H1B camera sensor.
+
+	  To enable OG01H1B camera sensor support, choose Y here:
+	  the module will be called OG01H1B camera sensor name.
+
 config VIDEO_OX01F10
 	tristate "OX01F10 camera sensor support"
 	depends on I2C && VIDEO_DEV
