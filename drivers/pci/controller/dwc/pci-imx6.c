@@ -1489,8 +1489,8 @@ static int imx_pcie_resume_noirq(struct device *dev)
 	}
 
 	ret = dw_pcie_resume_noirq(imx_pcie->pci);
-	if (ret)
-		return ret;
+	if (imx_pcie->link_is_up == false && ret == -ETIMEDOUT)
+		ret = 0;
 
 	if (imx_check_flag(imx_pcie, IMX_PCIE_FLAG_MONITOR_DEV))
 		imx_pcie_lut_restore(imx_pcie);
