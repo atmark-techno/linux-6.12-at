@@ -274,6 +274,9 @@ static int fsb_s400_fuse_read(void *priv, unsigned int offset, void *val,
 		for (i = 536; i < 816; i++)
 			buf[i] = readl_relaxed(regs + i * 4);
 		err = 0;
+
+		fuse->pfn = offset >> 12 & 0xf;
+		offset = offset & 0xfff;
 	}
 
 	memcpy(val, (u8 *)(buf) + offset, bytes);
@@ -411,7 +414,35 @@ static int imx_fsb_s400_fuse_probe(struct platform_device *pdev)
 	return 0;
 }
 
+/*
+ * i.MX95 uses the following mac address offset list:
+ * | No. | Mac address user  |
+ * |-----|-------------------|
+ * | 0   | enetc mac pf0     |
+ * | 1   | enetc mac vf0     |
+ * | 2   | enetc mac vf1     |
+ * | 3   | enetc mac pf1     |
+ * | 4   | enetc mac vf2     |
+ * | 5   | enetc mac vf3     |
+ * | 6   | enetc mac pf2     |
+ * | 7   | enetc mac vf4     |
+ * | 8   | enetc mac vf5     |
+ */
 static const u8 imx95_pf_mac_offset_list[] = { 0, 3, 6 };
+
+/*
+ * i.MX94 uses the following mac address offset list:
+ * | No.    | Module      | Mac address user             |
+ * |--------|-------------|------------------------------|
+ * | 0 ~ 1  | ethercat    | port0/port1                  |
+ * | 2      | netc switch | internal enetc3 mac OR swp0  |
+ * | 3 ~ 6  |             | enetc3 vf1~3 AND swp1        |
+ * | 7      | enetc mac   | enetc0 pf                    |
+ * | 8      |             | enetc1 pf                    |
+ * | 9      |             | enetc2 pf                    |
+ * | 10     | netc switch | swp2                         |
+ */
+static const u8 imx94_pf_mac_offset_list[] = { 2, 7, 8, 9 };
 
 static const struct imx_fsb_s400_hw imx8ulp_fsb_s400_hw = {
 	.soc = IMX8ULP,
@@ -473,7 +504,7 @@ static const struct imx_fsb_s400_hw imx94_fsb_s400_hw = {
 	.oscca_fuse_read = false,
 	.reverse_mac_address = false,
 	.increase_mac_address = true,
-	.pf_mac_offset_list = NULL,
+	.pf_mac_offset_list = imx94_pf_mac_offset_list,
 	.se_soc_id = SOC_ID_OF_IMX94,
 };
 
