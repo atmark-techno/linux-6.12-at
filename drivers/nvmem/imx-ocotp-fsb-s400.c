@@ -310,6 +310,8 @@ static int fsb_s400_fuse_post_process(void *priv, const char *id, int index,
 		    fuse->hw->pf_mac_offset_list) {
 			if (fuse->pfn >= sizeof(fuse->hw->pf_mac_offset_list))
 				return -EINVAL;
+			if (is_zero_ether_addr(buf))
+				return 0;
 			eth_addr_add(buf,
 				     fuse->hw->pf_mac_offset_list[fuse->pfn]);
 		}
