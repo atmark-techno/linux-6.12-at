@@ -239,7 +239,7 @@ int enetc_pf_set_vf_trust(struct net_device *ndev, int vf, bool setting)
 	struct enetc_pf *pf = enetc_si_priv(priv->si);
 	struct enetc_vf_state *vf_state;
 
-	if (vf >= pf->num_vfs)
+	if (vf >= pf->total_vfs)
 		return -EINVAL;
 
 	vf_state = &pf->vf_state[vf];
