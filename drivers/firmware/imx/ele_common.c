@@ -29,6 +29,7 @@ int ele_msg_rcv(struct se_if_device_ctx *dev_ctx,
 {
 	struct se_if_priv *priv = dev_ctx->priv;
 	bool wait_timeout_enabled = true;
+	int continue_retry_cnt = 10;
 	unsigned int wait;
 	int err;
 
@@ -55,7 +56,13 @@ int ele_msg_rcv(struct se_if_device_ctx *dev_ctx,
 		if (err == -ERESTARTSYS) {
 			if (priv->waiting_rsp_clbk_hdl.dev_ctx) {
 				priv->waiting_rsp_clbk_hdl.signal_rcvd = true;
-				continue;
+				if (continue_retry_cnt--)
+					continue;
+				else
+					dev_err(priv->dev,
+						"Fatal Error: SE interface: %s%d, hangs indefinitely.\n",
+						get_se_if_name(priv->if_defs->se_if_type),
+						priv->if_defs->se_instance_id);
 			}
 			err = -EINTR;
 			break;
@@ -98,13 +105,12 @@ int ele_msg_send(struct se_if_device_ctx *dev_ctx,
 	 * carried in the message.
 	 */
 	if (header->size << 2 != tx_msg_sz) {
-		err = -EINVAL;
 		dev_err(priv->dev,
 			"%s: User buf hdr: 0x%x, sz mismatced with input-sz (%d != %d).",
 			dev_ctx->devname,
 			*(u32 *)header,
 			header->size << 2, tx_msg_sz);
-		goto exit;
+		return -EINVAL;
 	}
 
 	err = mbox_send_message(priv->tx_chan, tx_msg);
@@ -117,7 +123,6 @@ int ele_msg_send(struct se_if_device_ctx *dev_ctx,
 	err = tx_msg_sz;
 	se_dump_to_logfl(dev_ctx, SE_DUMP_MU_SND_BUFS, tx_msg_sz, tx_msg);
 
-exit:
 	return err;
 }
 
