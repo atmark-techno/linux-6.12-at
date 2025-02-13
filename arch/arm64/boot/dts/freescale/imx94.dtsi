@@ -1317,6 +1317,13 @@
 			#mbox-cells = <2>;
 		};
 
+		ocotp: efuse@47510000 {
+			compatible = "fsl,imx94-ocotp";
+			reg = <0x0 0x47510000 0x0 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		elemu3: mailbox@47550000 {
 			compatible = "fsl,imx94-mu-ele";
 			reg = <0x0 0x47550000 0x0 0x10000>;
