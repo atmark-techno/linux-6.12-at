@@ -51,6 +51,13 @@
 		};
 	};
 
+	reg_vref_1v8: regulator-adc-vref {
+		compatible = "regulator-fixed";
+		regulator-name = "vref_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	reg_can2_en: regulator-can2-en {
 		compatible = "regulator-fixed";
 		regulator-max-microvolt = <3300000>;
@@ -162,6 +169,11 @@
 			"IN3R", "AMIC",
 			"IN1R", "AMIC";
 	};
+};
+
+&adc1 {
+	vref-supply = <&reg_vref_1v8>;
+	status = "okay";
 };
 
 &flexcan2 {
