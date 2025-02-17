@@ -355,6 +355,10 @@
 	status = "okay";
 };
 
+&epxp {
+	status = "okay";
+};
+
 &lpi2c3 {
 	clock-frequency = <400000>;
 	pinctrl-0 = <&pinctrl_lpi2c3>;
