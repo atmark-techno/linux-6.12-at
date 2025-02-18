@@ -100,7 +100,7 @@ static int enetc_ppm_get_reglen(struct net_device *ndev)
 
 	len *= sizeof(u32) * 2;
 
-	return 0;
+	return len;
 }
 
 static u32 *enetc_get_si_regs(struct enetc_ndev_priv *priv, u32 *buf)
