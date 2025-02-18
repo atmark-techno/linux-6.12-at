@@ -1771,13 +1771,11 @@ static int __maybe_unused enetc4_pf_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct enetc_ndev_priv *priv;
 	struct enetc_si *si;
-	struct enetc_pf *pf;
 
 	if (enetc_pf_is_owned_by_mcore(pdev))
 		return 0;
 
 	si = pci_get_drvdata(pdev);
-	pf = enetc_si_priv(si);
 	priv = netdev_priv(si->ndev);
 
 	if (!netif_running(si->ndev)) {
@@ -1819,14 +1817,12 @@ static int __maybe_unused enetc4_pf_resume(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct enetc_ndev_priv *priv;
 	struct enetc_si *si;
-	struct enetc_pf *pf;
 	int err;
 
 	if (enetc_pf_is_owned_by_mcore(pdev))
 		return 0;
 
 	si = pci_get_drvdata(pdev);
-	pf = enetc_si_priv(si);
 	priv = netdev_priv(si->ndev);
 	if (!netif_running(si->ndev)) {
 		rtnl_lock();
