@@ -452,7 +452,7 @@ static int netc_delete_sgit_entry(struct ntmp_priv *priv, u32 entry_id)
 	/* Step2: Update the stream gate instance table entry to set
 	 * the entry id of the administrative gate control list to NULL.
 	 */
-	new_entry.acfge.admin_sgcl_eid = NTMP_NULL_ENTRY_ID;
+	new_entry.acfge.admin_sgcl_eid = cpu_to_le32(NTMP_NULL_ENTRY_ID);
 	new_entry.entry_id = entry_id;
 	err = ntmp_sgit_add_or_update_entry(cbdrs, &new_entry);
 	if (err)

@@ -66,6 +66,7 @@ int netc_show_isit_entry(struct ntmp_priv *priv, struct seq_file *s,
 {
 	struct ntmp_isit_entry *isit_entry __free(kfree);
 	struct isit_keye_data *keye;
+	u32 key_aux;
 	int i, err;
 
 	isit_entry = kzalloc(sizeof(*isit_entry), GFP_KERNEL);
@@ -79,11 +80,12 @@ int netc_show_isit_entry(struct ntmp_priv *priv, struct seq_file *s,
 	}
 
 	keye = &isit_entry->keye;
+	key_aux = le32_to_cpu(keye->key_aux);
 	seq_printf(s, "Show ingress stream identification table entry 0x%x\n",
 		   entry_id);
 	seq_printf(s, "Key type: %lu, Source Port ID: %lu, IS_EID: %u\n",
-		   FIELD_GET(ISIT_KEY_TYPE, keye->key_aux),
-		   FIELD_GET(ISIT_SRC_PORT_ID, keye->key_aux),
+		   FIELD_GET(ISIT_KEY_TYPE, key_aux),
+		   FIELD_GET(ISIT_SRC_PORT_ID, key_aux),
 		   le32_to_cpu(isit_entry->is_eid));
 	seq_puts(s, "Keys: ");
 	for (i = 0; i < ISIT_FRAME_KEY_LEN; i++)
@@ -145,7 +147,7 @@ int netc_show_ist_entry(struct ntmp_priv *priv, struct seq_file *s,
 		break;
 	}
 
-	seq_printf(s, "MSDU :%u\n", le32_to_cpu(cfge->msdu));
+	seq_printf(s, "MSDU :%u\n", le16_to_cpu(cfge->msdu));
 	seq_printf(s, "IFME_LEN_CHANGE: 0x%lx, Egress Port: %lu\n",
 		   FIELD_GET(IST_IFME_LEN_CHANGE, switch_cfg),
 		   FIELD_GET(IST_EPORT, switch_cfg));
