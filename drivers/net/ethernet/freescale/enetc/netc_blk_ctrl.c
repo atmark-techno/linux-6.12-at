@@ -744,10 +744,10 @@ static struct platform_driver netc_blk_ctrl_driver = {
 	.driver = {
 		.name = "nxp-netc-blk-ctrl",
 		.of_match_table = netc_blk_ctrl_match,
+		.pm = pm_ptr(&netc_blk_ctrl_pm_ops),
 	},
 	.probe = netc_blk_ctrl_probe,
 	.remove = netc_blk_ctrl_remove,
-	.driver.pm = &netc_blk_ctrl_pm_ops,
 };
 
 module_platform_driver(netc_blk_ctrl_driver);
