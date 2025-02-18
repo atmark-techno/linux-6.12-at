@@ -1387,8 +1387,6 @@ static void enetc_pf_flush_si_vlan_filter(struct enetc_pf *pf, int si_id)
 
 static u16 enetc_msg_pf_flush_vf_vlan_entries(struct enetc_pf *pf, int vf_id)
 {
-	struct enetc_msg_swbd *msg_swbd = &pf->rxmsg[vf_id];
-	struct enetc_msg_vlan_filter_flush *msg;
 	struct enetc_si *si = pf->si;
 	union enetc_pf_msg pf_msg;
 
@@ -1397,7 +1395,6 @@ static u16 enetc_msg_pf_flush_vf_vlan_entries(struct enetc_pf *pf, int vf_id)
 		return pf_msg.code;
 	}
 
-	msg = (struct enetc_msg_vlan_filter_flush *)msg_swbd->vaddr;
 	enetc_pf_flush_si_vlan_filter(pf, vf_id + 1);
 
 	pf_msg.class_id = ENETC_MSG_CLASS_ID_CMD_SUCCESS;
