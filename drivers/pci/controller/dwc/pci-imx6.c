@@ -897,6 +897,8 @@ static int imx7d_pcie_core_reset(struct imx_pcie *imx_pcie, bool assert)
 
 static int imx95_pcie_core_reset(struct imx_pcie *imx_pcie, bool assert)
 {
+	u32 val;
+
 	if (assert) {
 		/*
 		 * From i.MX95 PCIe PHY perspective, the COLD reset toggle
@@ -912,9 +914,19 @@ static int imx95_pcie_core_reset(struct imx_pcie *imx_pcie, bool assert)
 		 */
 		regmap_update_bits(imx_pcie->iomuxc_gpr, IMX95_PCIE_RST_CTRL,
 				   IMX95_PCIE_COLD_RST, IMX95_PCIE_COLD_RST);
+		/*
+		 * Make sure the write to IMX95_PCIE_RST_CTRL is flushed to the
+		 * hardware by doing a read. Otherwise, there is no guarantee
+		 * that the write has reached the hardware before udelay().
+		 */
+		regmap_read_bypassed(imx_pcie->iomuxc_gpr, IMX95_PCIE_RST_CTRL,
+				     &val);
+		udelay(15);
+		regmap_clear_bits(imx_pcie->iomuxc_gpr, IMX95_PCIE_RST_CTRL,
+				  IMX95_PCIE_COLD_RST);
+		regmap_read_bypassed(imx_pcie->iomuxc_gpr, IMX95_PCIE_RST_CTRL,
+				     &val);
 		udelay(10);
-		regmap_update_bits(imx_pcie->iomuxc_gpr, IMX95_PCIE_RST_CTRL,
-				   IMX95_PCIE_COLD_RST, 0);
 	}
 
 	return 0;
