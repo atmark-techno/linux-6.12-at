@@ -57,10 +57,9 @@ static inline int netc_ierb_may_wakeonlan(void)
 #endif
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK_NETC)
-int netc_timer_get_phc_index(int domain, unsigned int bus, unsigned int devfn);
+int netc_timer_get_phc_index(struct pci_dev *timer_pdev);
 #else
-static inline int netc_timer_get_phc_index(int domain, unsigned int bus,
-					   unsigned int devfn)
+static inline int netc_timer_get_phc_index(struct pci_dev *timer_pdev)
 {
 	return -1;
 }

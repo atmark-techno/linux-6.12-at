@@ -489,14 +489,12 @@ cal_clk_period:
 	return 0;
 }
 
-int netc_timer_get_phc_index(int domain, unsigned int bus, unsigned int devfn)
+int netc_timer_get_phc_index(struct pci_dev *timer_pdev)
 {
-	struct pci_dev *timer_pdev;
 	struct netc_timer *priv;
 
-	timer_pdev = pci_get_domain_bus_and_slot(domain, bus, devfn);
 	if (!timer_pdev)
-		return -EINVAL;
+		return -ENODEV;
 
 	priv = pci_get_drvdata(timer_pdev);
 	if (!priv)
