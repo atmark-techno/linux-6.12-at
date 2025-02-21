@@ -1594,7 +1594,7 @@
 	ldb: ldb-display-controller {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "fsl,imx93-ldb";
+		compatible = "fsl,imx93-ldb-nxp";
 		clocks = <&clk IMX93_CLK_LVDS_GATE>;
 		clock-names = "ldb";
 		assigned-clocks = <&clk IMX93_CLK_MEDIA_LDB>;
