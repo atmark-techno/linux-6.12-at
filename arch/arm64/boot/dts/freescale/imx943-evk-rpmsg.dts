@@ -219,6 +219,18 @@
 			reg = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			lvds-to-hdmi-bridge@4c {
+				compatible = "ite,it6263";
+				reg = <0x4c>;
+				reset-gpios = <&pcal6416_i2c3_u171 8 GPIO_ACTIVE_HIGH>;
+
+				port {
+					it6263_in: endpoint {
+						remote-endpoint = <&lvds_out>;
+					};
+				};
+			};
 		};
 
 		i2c@4 {
