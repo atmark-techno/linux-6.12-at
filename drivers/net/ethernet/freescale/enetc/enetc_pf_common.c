@@ -446,8 +446,8 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 	struct phylink_pcs *phylink_pcs;
 	struct mii_bus *bus;
 	struct phy *serdes;
+	int err, xpcs_ver;
 	size_t num_phys;
-	int err;
 
 	serdes = devm_of_phy_optional_get(dev, dev->of_node, NULL);
 	if (IS_ERR(serdes))
@@ -504,7 +504,17 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 			goto unregister_mdiobus;
 		}
 	} else {
-		phylink_pcs = xpcs_create_mdiodev_with_phy(bus, 0, 16, pf->if_mode);
+		switch (pf->si->revision) {
+		case NETC_REVISION_4_1:
+			xpcs_ver = DW_XPCS_VER_MX95;
+			break;
+		default:
+			dev_err(dev, "unsupported xpcs version\n");
+			goto unregister_mdiobus;
+		}
+		phylink_pcs = xpcs_create_mdiodev_with_phy(bus, 0, 16, 0,
+							   xpcs_ver,
+							   pf->if_mode);
 		if (IS_ERR(phylink_pcs)) {
 			err = PTR_ERR(phylink_pcs);
 			dev_err(dev, "cannot create xpcs mdiodev (%d)\n", err);
