@@ -1100,6 +1100,7 @@
 	mt35xu512aba: flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0>;
+		reset-gpios = <&pcal6416_i2c6_u50 15 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <200000000>;
