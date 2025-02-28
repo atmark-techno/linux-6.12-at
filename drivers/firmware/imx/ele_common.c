@@ -29,7 +29,6 @@ int ele_msg_rcv(struct se_if_device_ctx *dev_ctx,
 {
 	struct se_if_priv *priv = dev_ctx->priv;
 	bool wait_timeout_enabled = true;
-	int continue_retry_cnt = 10;
 	unsigned int wait;
 	int err;
 
@@ -56,13 +55,7 @@ int ele_msg_rcv(struct se_if_device_ctx *dev_ctx,
 		if (err == -ERESTARTSYS) {
 			if (priv->waiting_rsp_clbk_hdl.dev_ctx) {
 				priv->waiting_rsp_clbk_hdl.signal_rcvd = true;
-				if (continue_retry_cnt--)
-					continue;
-				else
-					dev_err(priv->dev,
-						"Fatal Error: SE interface: %s%d, hangs indefinitely.\n",
-						get_se_if_name(priv->if_defs->se_if_type),
-						priv->if_defs->se_instance_id);
+				continue;
 			}
 			err = -EINTR;
 			break;
