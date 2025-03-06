@@ -241,7 +241,6 @@
 			wm8962: codec@1a {
 				compatible = "wlf,wm8962";
 				reg = <0x1a>;
-				clocks = <&scmi_clk IMX94_CLK_SAI1>;
 				DCVDD-supply = <&reg_audio_pwr>;
 				DBVDD-supply = <&reg_audio_pwr>;
 				AVDD-supply = <&reg_audio_pwr>;
