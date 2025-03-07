@@ -130,8 +130,27 @@ static int netc_psfp_flower_key_validate(struct ntmp_priv *priv,
 	return 0;
 }
 
+static struct netc_gate_tbl *
+netc_find_flower_gate_table(struct ntmp_priv *priv, u32 index)
+{
+	struct netc_flower_rule *rule;
+
+	hlist_for_each_entry(rule, &priv->flower_list, node) {
+		struct netc_gate_tbl *gate_tbl = rule->gate_tbl;
+
+		if (!gate_tbl)
+			continue;
+
+		if (gate_tbl->sgit_eid == index)
+			return gate_tbl;
+	}
+
+	return NULL;
+}
+
 static int netc_psfp_gate_entry_validate(struct ntmp_priv *priv,
 					 struct flow_action_entry *gate_entry,
+					 struct netc_gate_tbl **gate_tbl,
 					 struct netlink_ext_ack *extack)
 {
 	u64 max_cycle_time;
@@ -160,10 +179,9 @@ static int netc_psfp_gate_entry_validate(struct ntmp_priv *priv,
 		return -EINVAL;
 	}
 
-	if (test_and_set_bit(gate_entry->hw_index, priv->sgit_eid_bitmap)) {
-		NL_SET_ERR_MSG_MOD(extack, "Current gate hw index has been used");
-		return -EINVAL;
-	}
+	if (test_and_set_bit(gate_entry->hw_index, priv->sgit_eid_bitmap))
+		*gate_tbl = netc_find_flower_gate_table(priv,
+							gate_entry->hw_index);
 
 	return 0;
 }
@@ -497,14 +515,20 @@ static int netc_psfp_set_related_tables(struct ntmp_priv *priv,
 	if (err)
 		return err;
 
-	err = ntmp_sgclt_add_entry(cbdrs, sgclt_entry);
-	if (err)
-		goto delete_isct_entry;
+	if (sgclt_entry) {
+		err = ntmp_sgclt_add_entry(cbdrs, sgclt_entry);
+		if (err)
+			goto delete_isct_entry;
+	}
 
-	err = ntmp_sgit_add_or_update_entry(cbdrs, sgit_entry);
-	if (err) {
-		ntmp_sgclt_delete_entry(cbdrs, sgclt_entry->entry_id);
-		goto delete_isct_entry;
+	if (sgit_entry) {
+		err = ntmp_sgit_add_or_update_entry(cbdrs, sgit_entry);
+		if (err) {
+			if (sgclt_entry)
+				ntmp_sgclt_delete_entry(cbdrs,
+							sgclt_entry->entry_id);
+			goto delete_isct_entry;
+		}
 	}
 
 	if (rpt_entry) {
@@ -546,7 +570,8 @@ delete_rpt_entry:
 		ntmp_rpt_delete_entry(cbdrs, rpt_entry->entry_id);
 
 delete_sgit_entry:
-	netc_delete_sgit_entry(priv, sgit_entry->entry_id);
+	if (sgit_entry)
+		netc_delete_sgit_entry(priv, sgit_entry->entry_id);
 
 delete_isct_entry:
 	ntmp_isct_operate_entry(cbdrs, ist_entry->entry_id, NTMP_CMD_DELETE, NULL);
@@ -673,22 +698,24 @@ int netc_setup_psfp(struct ntmp_priv *priv, int port_id,
 {
 	struct flow_action_entry *gate_entry = NULL, *police_entry = NULL;
 	struct flow_rule *cls_rule = flow_cls_offload_flow_rule(f);
+	struct ntmp_sgclt_entry *sgclt_entry __free(kfree) = NULL;
 	struct ntmp_isft_entry *isft_entry __free(kfree) = NULL;
+	struct ntmp_sgit_entry *sgit_entry __free(kfree) = NULL;
 	struct ntmp_rpt_entry *rpt_entry __free(kfree) = NULL;
+	struct netc_gate_tbl *gate_tbl __free(kfree) = NULL;
 	struct netc_flower_rule *rule __free(kfree) = NULL;
-	struct ntmp_sgclt_entry *sgclt_entry __free(kfree);
 	struct netc_flower_key_tbl *reused_key_tbl = NULL;
 	struct netlink_ext_ack *extack = f->common.extack;
-	struct ntmp_sgit_entry *sgit_entry __free(kfree);
 	struct ntmp_isct_entry *isct_entry __free(kfree);
+	struct netc_gate_tbl *reused_gate_tbl = NULL;
 	struct netc_flower_key_tbl *key_tbl = NULL;
+	u32 ist_eid, sgclt_eid, isct_eid, sgit_eid;
+	u32 sgclt_entry_size = 0, sgclt_data_size;
 	struct ntmp_ist_entry *ist_entry = NULL;
 	struct flow_action_entry *action_entry;
-	u32 sgclt_entry_size, sgclt_data_size;
 	struct netc_psfp_tbl_entries psfp_tbl;
 	struct isit_keye_data isit_keye = {0};
 	struct ntmp_isit_entry *isit_entry;
-	u32 ist_eid, sgclt_eid, isct_eid;
 	unsigned long cookie = f->cookie;
 	u32 ist_cfg = 0, num_gates;
 	int i, err, priority = -1;
@@ -716,7 +743,8 @@ int netc_setup_psfp(struct ntmp_priv *priv, int port_id,
 		else if (action_entry->id == FLOW_ACTION_POLICE)
 			police_entry = action_entry;
 
-	err = netc_psfp_gate_entry_validate(priv, gate_entry, extack);
+	err = netc_psfp_gate_entry_validate(priv, gate_entry,
+					    &reused_gate_tbl, extack);
 	if (err)
 		return err;
 
@@ -763,13 +791,23 @@ int netc_setup_psfp(struct ntmp_priv *priv, int port_id,
 		}
 	}
 
+	sgit_eid = gate_entry->hw_index;
+	if (reused_gate_tbl)
+		goto config_isct;
+
+	gate_tbl = kzalloc(sizeof(*gate_tbl), GFP_KERNEL);
+	if (!gate_tbl) {
+		err = -ENOMEM;
+		goto free_psfp_key_tbl;
+	}
+
 	sgit_entry = kzalloc(sizeof(*sgit_entry), GFP_KERNEL);
 	if (!sgit_entry) {
 		err = -ENOMEM;
 		goto free_psfp_key_tbl;
 	}
 
-	sgit_entry->entry_id = gate_entry->hw_index;
+	sgit_entry->entry_id = sgit_eid;
 	num_gates = gate_entry->gate.num_entries;
 	sgclt_entry_size = 1 + DIV_ROUND_UP(num_gates, 2);
 	sgclt_eid = ntmp_lookup_free_words(priv->sgclt_word_bitmap,
@@ -789,9 +827,12 @@ int netc_setup_psfp(struct ntmp_priv *priv, int port_id,
 	}
 
 	sgclt_entry->entry_id = sgclt_eid;
-	rule->sgclt_eid = sgclt_eid;
+	gate_tbl->sgclt_eid = sgclt_eid;
+	gate_tbl->sgit_eid = sgit_eid;
+	refcount_set(&gate_tbl->refcount, 1);
 	netc_psfp_gate_entry_config(priv, gate_entry, sgit_entry, sgclt_entry);
 
+config_isct:
 	isct_eid = ntmp_lookup_free_eid(priv->isct_eid_bitmap,
 					priv->caps.isct_num_entries);
 	if (isct_eid == NTMP_NULL_ENTRY_ID) {
@@ -822,7 +863,7 @@ int netc_setup_psfp(struct ntmp_priv *priv, int port_id,
 		isft_entry->keye.pcp = FIELD_PREP(ISFT_PCP, priority);
 		isft_entry->cfge.msdu = cpu_to_le16(msdu);
 		isft_entry->cfge.isc_eid = cpu_to_le32(isct_eid);
-		isft_entry->cfge.sgi_eid = cpu_to_le32(sgit_entry->entry_id);
+		isft_entry->cfge.sgi_eid = cpu_to_le32(sgit_eid);
 		isft_entry->cfge.rp_eid = cpu_to_le32(NTMP_NULL_ENTRY_ID);
 		isft_cfg |= ISFT_OSGI;
 
@@ -839,7 +880,7 @@ int netc_setup_psfp(struct ntmp_priv *priv, int port_id,
 		ist_cfg |= IST_OSGI;
 		ist_entry->cfge.msdu = cpu_to_le16(msdu);
 		ist_entry->cfge.isc_eid = cpu_to_le32(isct_eid);
-		ist_entry->cfge.sgi_eid = cpu_to_le32(sgit_entry->entry_id);
+		ist_entry->cfge.sgi_eid = cpu_to_le32(sgit_eid);
 
 		if (rpt_entry) {
 			ist_cfg |= IST_ORP;
@@ -871,6 +912,13 @@ int netc_setup_psfp(struct ntmp_priv *priv, int port_id,
 		rule->key_tbl = key_tbl;
 	}
 
+	if (reused_gate_tbl) {
+		rule->gate_tbl = reused_gate_tbl;
+		refcount_inc(&reused_gate_tbl->refcount);
+	} else {
+		rule->gate_tbl = no_free_ptr(gate_tbl);
+	}
+
 	hlist_add_head(&no_free_ptr(rule)->node, &priv->flower_list);
 
 	return 0;
@@ -879,8 +927,9 @@ clear_isct_eid_bit:
 	ntmp_clear_eid_bitmap(priv->isct_eid_bitmap, isct_eid);
 
 clear_sgclt_eid_words:
-	ntmp_clear_words_bitmap(priv->sgclt_word_bitmap, sgclt_eid,
-				sgclt_entry_size);
+	if (sgclt_entry_size)
+		ntmp_clear_words_bitmap(priv->sgclt_word_bitmap, sgclt_eid,
+					sgclt_entry_size);
 
 free_psfp_key_tbl:
 	netc_free_flower_key_tbl(priv, key_tbl);
@@ -891,7 +940,9 @@ clear_rpt_eid_bit:
 				      police_entry->hw_index);
 
 clear_sgit_eid_bit:
-	ntmp_clear_eid_bitmap(priv->sgit_eid_bitmap, gate_entry->hw_index);
+	if (!reused_gate_tbl)
+		ntmp_clear_eid_bitmap(priv->sgit_eid_bitmap,
+				      gate_entry->hw_index);
 
 	return err;
 }
@@ -902,10 +953,11 @@ void netc_delete_psfp_flower_rule(struct ntmp_priv *priv,
 {
 	struct ntmp_isft_entry *isft_entry = rule->isft_entry;
 	struct netc_flower_key_tbl *key_tbl = rule->key_tbl;
+	struct netc_gate_tbl *gate_tbl = rule->gate_tbl;
 	struct netc_cbdrs *cbdrs = &priv->cbdrs;
 	struct ntmp_isit_entry *isit_entry;
 	struct ntmp_ist_entry *ist_entry;
-	u32 rpt_eid, isct_eid, sgit_eid;
+	u32 rpt_eid, isct_eid;
 
 	if (refcount_dec_and_test(&key_tbl->refcount)) {
 		isit_entry = key_tbl->isit_entry;
@@ -915,7 +967,6 @@ void netc_delete_psfp_flower_rule(struct ntmp_priv *priv,
 
 		rpt_eid = le32_to_cpu(ist_entry->cfge.rp_eid);
 		isct_eid = le32_to_cpu(ist_entry->cfge.isc_eid);
-		sgit_eid = le32_to_cpu(ist_entry->cfge.sgi_eid);
 
 		netc_free_flower_key_tbl(priv, key_tbl);
 	}
@@ -923,7 +974,6 @@ void netc_delete_psfp_flower_rule(struct ntmp_priv *priv,
 	if (isft_entry) {
 		rpt_eid = le32_to_cpu(isft_entry->cfge.rp_eid);
 		isct_eid = le32_to_cpu(isft_entry->cfge.isc_eid);
-		sgit_eid = le32_to_cpu(isft_entry->cfge.sgi_eid);
 
 		ntmp_isft_delete_entry(cbdrs, isft_entry->entry_id);
 		kfree(isft_entry);
@@ -931,8 +981,13 @@ void netc_delete_psfp_flower_rule(struct ntmp_priv *priv,
 
 	ntmp_isct_operate_entry(cbdrs, isct_eid, NTMP_CMD_DELETE, NULL);
 	ntmp_clear_eid_bitmap(priv->isct_eid_bitmap, isct_eid);
-	netc_delete_sgit_entry(priv, sgit_eid);
-	ntmp_clear_eid_bitmap(priv->sgit_eid_bitmap, sgit_eid);
+
+	if (gate_tbl && refcount_dec_and_test(&gate_tbl->refcount)) {
+		netc_delete_sgit_entry(priv, gate_tbl->sgit_eid);
+		ntmp_clear_eid_bitmap(priv->sgit_eid_bitmap, gate_tbl->sgit_eid);
+		kfree(gate_tbl);
+	}
+
 	if (rpt_eid != NTMP_NULL_ENTRY_ID) {
 		ntmp_rpt_delete_entry(cbdrs, rpt_eid);
 		ntmp_clear_eid_bitmap(priv->rpt_eid_bitmap, rpt_eid);

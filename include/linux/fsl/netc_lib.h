@@ -25,6 +25,12 @@ enum netc_key_tbl_type {
 	FLOWER_KEY_TBL_IPFT,
 };
 
+struct netc_gate_tbl {
+	u32 sgit_eid;
+	u32 sgclt_eid;
+	refcount_t refcount;
+};
+
 struct netc_flower_key_tbl {
 	enum netc_key_tbl_type tbl_type;
 	union {
@@ -41,8 +47,7 @@ struct netc_flower_rule {
 	enum netc_flower_type flower_type;
 	struct netc_flower_key_tbl *key_tbl;
 	struct ntmp_isft_entry *isft_entry;
-	/* Valid if flower_type is FLOWER_TYPE_PSFP */
-	u32 sgclt_eid;
+	struct netc_gate_tbl *gate_tbl;
 	u64 lastused; /* Last used time, jiffies */
 	struct hlist_node node;
 };
