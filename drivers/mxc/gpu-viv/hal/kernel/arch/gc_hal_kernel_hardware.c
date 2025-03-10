@@ -9253,9 +9253,10 @@ gceSTATUS
 gckHARDWARE_HandleFault(IN gckHARDWARE Hardware)
 {
     gceSTATUS status = gcvSTATUS_NOT_SUPPORTED;
-    gctUINT32 mmu, mmuStatus, address = 0, i = 0;
+    gctUINT32 mmu, mmuStatus, reg, i = 0;
     gctUINT32 mmuStatusRegAddress;
     gctUINT32 mmuExceptionAddress;
+    gctADDRESS address = 0;
 
     gcmkHEADER_ARG("Hardware=%p", Hardware);
 
@@ -9286,7 +9287,9 @@ gckHARDWARE_HandleFault(IN gckHARDWARE Hardware)
                 continue;
 
             gcmkVERIFY_OK(gckOS_ReadRegisterEx(Hardware->os, Hardware->kernel,
-                                               mmuExceptionAddress + i * 4, &address));
+                                               mmuExceptionAddress + i * 4, &reg));
+
+            address = reg;
 
             break;
         }
