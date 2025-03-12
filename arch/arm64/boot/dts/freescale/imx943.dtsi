@@ -250,8 +250,10 @@
 			interrupt-names = "common", "bg_layer", "fg_layer";
 			clocks = <&scmi_clk IMX94_CLK_DISPAPB>,
 				 <&scmi_clk IMX94_CLK_DISPAXI>,
-				 <&scmi_clk IMX94_CLK_DISPPIX>;
+				 <&dispmix_csr IMX94_CLK_DISPMIX_CLK_SEL>;
 			clock-names = "apb", "axi", "pix";
+			assigned-clocks = <&dispmix_csr IMX94_CLK_DISPMIX_CLK_SEL>;
+			assigned-clock-parents = <&ldb_pll_pixel>;
 			power-domains = <&scmi_devpd IMX94_PD_DISPLAY>;
 			nxp,blk-ctrl = <&dispmix_csr>;
 			status = "disabled";
