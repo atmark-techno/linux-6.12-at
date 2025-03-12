@@ -437,12 +437,36 @@ cleanup:
 	return ret;
 }
 
+static void __maybe_unused imx95_bc_save_reg(struct imx95_blk_ctl *bc)
+{
+	const struct imx95_blk_ctl_dev_data *bc_data;
+
+	bc_data = of_device_get_match_data(bc->dev);
+	if (!bc_data)
+		return;
+
+	bc->clk_reg_restore = readl(bc->base + bc_data->clk_reg_offset);
+}
+
+static void __maybe_unused imx95_bc_restore_reg(struct imx95_blk_ctl *bc)
+{
+	const struct imx95_blk_ctl_dev_data *bc_data;
+
+	bc_data = of_device_get_match_data(bc->dev);
+	if (!bc_data)
+		return;
+
+	writel(bc->clk_reg_restore, bc->base + bc_data->clk_reg_offset);
+}
+
 #ifdef CONFIG_PM
 static int imx95_bc_runtime_suspend(struct device *dev)
 {
 	struct imx95_blk_ctl *bc = dev_get_drvdata(dev);
 
+	imx95_bc_save_reg(bc);
 	clk_disable_unprepare(bc->clk_apb);
+
 	return 0;
 }
 
@@ -450,7 +474,10 @@ static int imx95_bc_runtime_resume(struct device *dev)
 {
 	struct imx95_blk_ctl *bc = dev_get_drvdata(dev);
 
-	return clk_prepare_enable(bc->clk_apb);
+	clk_prepare_enable(bc->clk_apb);
+	imx95_bc_restore_reg(bc);
+
+	return 0;
 }
 #endif
 
@@ -458,22 +485,12 @@ static int imx95_bc_runtime_resume(struct device *dev)
 static int imx95_bc_suspend(struct device *dev)
 {
 	struct imx95_blk_ctl *bc = dev_get_drvdata(dev);
-	const struct imx95_blk_ctl_dev_data *bc_data;
-	int ret;
 
-	bc_data = of_device_get_match_data(dev);
-	if (!bc_data)
+	if (pm_runtime_suspended(dev))
 		return 0;
 
-	if (bc_data->rpm_enabled) {
-		ret = pm_runtime_get_sync(bc->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(bc->dev);
-			return ret;
-		}
-	}
-
-	bc->clk_reg_restore = readl(bc->base + bc_data->clk_reg_offset);
+	imx95_bc_save_reg(bc);
+	clk_disable_unprepare(bc->clk_apb);
 
 	return 0;
 }
@@ -481,16 +498,12 @@ static int imx95_bc_suspend(struct device *dev)
 static int imx95_bc_resume(struct device *dev)
 {
 	struct imx95_blk_ctl *bc = dev_get_drvdata(dev);
-	const struct imx95_blk_ctl_dev_data *bc_data;
 
-	bc_data = of_device_get_match_data(dev);
-	if (!bc_data)
+	if (pm_runtime_suspended(dev))
 		return 0;
 
-	writel(bc->clk_reg_restore, bc->base + bc_data->clk_reg_offset);
-
-	if (bc_data->rpm_enabled)
-		pm_runtime_put(bc->dev);
+	clk_prepare_enable(bc->clk_apb);
+	imx95_bc_restore_reg(bc);
 
 	return 0;
 }
