@@ -314,6 +314,7 @@ static const struct imx95_blk_ctl_dev_data imx94_lvds_csr_dev_data = {
 	.num_clks = ARRAY_SIZE(imx94_lvds_clk_dev_data),
 	.clk_dev_data = imx94_lvds_clk_dev_data,
 	.clk_reg_offset = 0,
+	.rpm_enabled = true,
 };
 
 static const struct imx95_blk_ctl_clk_dev_data imx94_dispmix_csr_clk_dev_data[] = {
@@ -333,6 +334,7 @@ static const struct imx95_blk_ctl_dev_data imx94_dispmix_csr_dev_data = {
 	.num_clks = ARRAY_SIZE(imx94_dispmix_csr_clk_dev_data),
 	.clk_dev_data = imx94_dispmix_csr_clk_dev_data,
 	.clk_reg_offset = 0,
+	.rpm_enabled = true,
 };
 
 static int imx95_bc_probe(struct platform_device *pdev)
