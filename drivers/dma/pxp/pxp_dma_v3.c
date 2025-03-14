@@ -1139,6 +1139,7 @@ static const struct pxp_format_info common_formats[] = {
 		.bpp		= 16,
 		.format		= PXP_PIX_FMT_NV12,
 		.fmt_ctrl	= {
+			[PXP_2D_PS] = BV_PXP_PS_CTRL_FORMAT__YUV2P420,
 			[PXP_2D_OUT] = BV_PXP_OUT_CTRL_FORMAT__YUV2P420,
 		},
 		.encoding = PXP_ENC_YUV,
