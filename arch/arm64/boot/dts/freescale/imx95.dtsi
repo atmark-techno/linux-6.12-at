@@ -2641,7 +2641,7 @@
 				     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&scmi_clk IMX95_CLK_HSIO>,
 				 <&scmi_clk IMX95_CLK_32K>;
-			clock-names = "usb1_ctrl_root_clk", "usb_wakeup_clk";
+			clock-names = "usb_ctrl_root", "usb_wakeup";
 			power-domains = <&scmi_devpd IMX95_PD_HSIO_TOP>;
 			phys = <&usbphynop>;
 			fsl,usbmisc = <&usbmisc 0>;
