@@ -137,6 +137,7 @@ struct neoisp_dev_s;
  * @neoisp_hw_ver: ISP version
  * @regs: The active registers of ISP version
  * @mems: The active memory blocks of ISP version
+ * @gain_adjust: Callback to adjust gain for data alignment
  *
  * This structure contains information about the ISP specific to a particular
  * ISP model, version, or integration in a particular SoC.
@@ -145,8 +146,8 @@ struct neoisp_info_s {
 	enum neoisp_version_e neoisp_hw_ver;
 	const int *regs;
 	const struct isp_block_map_s *mems;
+	void (*gain_adjust)(struct neoisp_reg_params_s *regp, __u32 ibpp);
 };
-
 struct neoisp_node_desc_s {
 	const char *ent_name;
 	enum v4l2_buf_type buf_type;

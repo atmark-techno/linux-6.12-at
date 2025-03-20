@@ -957,6 +957,8 @@ static int neoisp_prepare_node_streaming(struct neoisp_node_s *node)
 	 * Check if this is input0 node to preload default params
 	 */
 	if (node->id == NEOISP_INPUT0_NODE) {
+		if (neoispd->info->gain_adjust)
+			neoispd->info->gain_adjust(&params->regs, node->neoisp_format->bit_depth);
 		neoisp_update_head_color(&params->regs, pixfmt);
 		neoisp_update_monochrome(&params->regs, pixfmt);
 	}
@@ -2267,6 +2269,22 @@ static const struct dev_pm_ops neoisp_pm = {
 	SET_RUNTIME_PM_OPS(neoisp_runtime_suspend, neoisp_runtime_resume, NULL)
 };
 
+/*
+ * The gain adjustment should be done for v2 only, as the 12-bit format is managed in a specific
+ * way. Both versions use LPALIGN0/1 bit field to select LSB or MSB alignment. However, LPALIGN0/1
+ * is disabled for 12-bit operations in v2 and data is always aligned in the following manner:
+ * d[15] -> d[4]
+ *
+ * In this sense, a gain is applied to the HDR Decompression block to align the data on d[19] for
+ * input0 as other formats are defined. As the working BPP of input1 is 16-bit depth, the data is
+ * already MSB-aligned and do not need an extra gain.
+ */
+static void neoisp_gain_adjust_v2(struct neoisp_reg_params_s *regp, __u32 ibpp)
+{
+	if (ibpp == 12)
+		regp->decompress_input0.knee_ratio4 = 16 << NEOISP_HDR_SHIFT_RADIX;
+}
+
 static const struct neoisp_info_s neoisp_v1_data = {
 	.neoisp_hw_ver = NEO_ISP_V1,
 	.regs = neoisp_fields_a_v1,
@@ -2277,6 +2295,7 @@ static const struct neoisp_info_s neoisp_v2_data = {
 	.neoisp_hw_ver = NEO_ISP_V2,
 	.regs = neoisp_fields_a_v2,
 	.mems = &active_block_map[NEO_ISP_V2],
+	.gain_adjust = neoisp_gain_adjust_v2,
 };
 
 static const struct of_device_id neoisp_dt_ids[] = {
