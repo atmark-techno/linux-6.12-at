@@ -1028,7 +1028,7 @@ static void cdn_dp_pd_event_work(struct work_struct *work)
 
 out:
 	mutex_unlock(&dp->lock);
-	drm_connector_helper_hpd_irq_event(&dp->connector);
+	drm_connector_helper_hpd_irq_event(connector);
 }
 
 static int cdn_dp_pd_event(struct notifier_block *nb,
