@@ -123,6 +123,41 @@ struct imx_rproc {
 	u32				startup_delay;
 };
 
+static const struct imx_rproc_att imx_rproc_att_imx94_m7[] = {
+	/* dev addr , sys addr  , size	    , flags */
+	/* TCM CODE NON-SECURE */
+	{ 0x00000000, 0x203C0000, 0x00040000, ATT_OWN | ATT_IOMEM | ATT_CORE(1) },
+	/* TCM SYS NON-SECURE*/
+	{ 0x20000000, 0x20400000, 0x00040000, ATT_OWN | ATT_IOMEM | ATT_CORE(1) },
+
+	/* TCM CODE NON-SECURE */
+	{ 0x00000000, 0x202C0000, 0x00040000, ATT_OWN | ATT_IOMEM | ATT_CORE(7) },
+	/* TCM SYS NON-SECURE*/
+	{ 0x20000000, 0x20300000, 0x00040000, ATT_OWN | ATT_IOMEM | ATT_CORE(7) },
+
+	/* DDR */
+	{ 0x80000000, 0x80000000, 0x50000000, 0 },
+};
+
+static const struct imx_rproc_att imx_rproc_att_imx94_m33s[] = {
+	/* dev addr , sys addr  , size	    , flags */
+	/* TCM CODE NON-SECURE */
+	{ 0x0FFC0000, 0x209C0000, 0x00040000, ATT_OWN | ATT_IOMEM },
+	/* TCM CODE SECURE */
+	{ 0x1FFC0000, 0x209C0000, 0x00040000, ATT_OWN | ATT_IOMEM },
+
+	/* TCM SYS NON-SECURE */
+	{ 0x20000000, 0x20A00000, 0x00040000, ATT_OWN | ATT_IOMEM },
+	/* TCM SYS NON-SECURE */
+	{ 0x30000000, 0x20A00000, 0x00040000, ATT_OWN | ATT_IOMEM },
+
+	/* M33S OCRAM */
+	{ 0x20800000, 0x20800000, 0x180000, ATT_OWN | ATT_IOMEM },
+
+	/* DDR */
+	{ 0x80000000, 0x80000000, 0x50000000, 0 },
+};
+
 static const struct imx_rproc_att imx_rproc_att_imx95_m7[] = {
 	/* dev addr , sys addr  , size	    , flags */
 	/* TCM CODE NON-SECURE */
@@ -387,6 +422,19 @@ static const struct imx_rproc_dcfg imx_rproc_cfg_imx95_m7 = {
 	.method		= IMX_RPROC_SMC,
 };
 
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx94_m7 = {
+	.att		= imx_rproc_att_imx94_m7,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx94_m7),
+	.method		= IMX_RPROC_SMC,
+};
+
+static const struct imx_rproc_dcfg imx_rproc_cfg_imx94_m33s = {
+	.att		= imx_rproc_att_imx94_m33s,
+	.att_size	= ARRAY_SIZE(imx_rproc_att_imx94_m33s),
+	.method		= IMX_RPROC_SMC,
+};
+
+
 static int imx_rproc_start(struct rproc *rproc)
 {
 	struct imx_rproc *priv = rproc->priv;
@@ -415,7 +463,7 @@ static int imx_rproc_start(struct rproc *rproc)
 		if (ret)
 			dev_err(dev, "Failed to enable audio clk!\n");
 		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_START, rproc->bootaddr,
-			      0, 0, 0, 0, 0, &res);
+			      priv->core_index, 0, 0, 0, 0, &res);
 		ret = res.a0;
 		break;
 	case IMX_RPROC_SCU_API:
@@ -458,7 +506,8 @@ static int imx_rproc_stop(struct rproc *rproc)
 					 dcfg->src_stop);
 		break;
 	case IMX_RPROC_SMC:
-		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STOP, 0, 0, 0, 0, 0, 0, &res);
+		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STOP, rproc->bootaddr,
+			      priv->core_index, 0, 0, 0, 0, &res);
 		ret = res.a0;
 		if (res.a1)
 			dev_info(dev, "Not in wfi, force stopped\n");
@@ -720,8 +769,10 @@ static u64 imx_rproc_get_boot_addr(struct rproc *rproc, const struct firmware *f
 	u16 shstrndx = elf_hdr_get_e_shstrndx(class, ehdr);
 	u64 sh_addr;
 
-	if (!of_device_is_compatible(dev->of_node, "fsl,imx93-cm33")
-	    && !of_device_is_compatible(dev->of_node, "fsl,imx95-cm7"))
+	if (!of_device_is_compatible(dev->of_node, "fsl,imx93-cm33") &&
+	    !of_device_is_compatible(dev->of_node, "fsl,imx95-cm7") &&
+	    !of_device_is_compatible(dev->of_node, "fsl,imx94-cm7") &&
+	    !of_device_is_compatible(dev->of_node, "fsl,imx94-cm33s"))
 		return rproc_elf_get_boot_addr(rproc, fw);
 
 	/* First, get the section header according to the elf class */
@@ -992,7 +1043,12 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 		priv->rproc->state = RPROC_DETACHED;
 		return 0;
 	case IMX_RPROC_SMC:
-		arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STARTED, 0, 0, 0, 0, 0, 0, &res);
+		ret = of_property_read_u32(dev->of_node, "fsl,core-index", &priv->core_index);
+		if (ret)
+			arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STARTED, 0, 0, 0, 0, 0, 0, &res);
+		else
+			arm_smccc_smc(IMX_SIP_RPROC, IMX_SIP_RPROC_STARTED, 0,
+				      priv->core_index, 0, 0, 0, 0, &res);
 		if (res.a0)
 			priv->rproc->state = RPROC_DETACHED;
 		return 0;
@@ -1277,6 +1333,8 @@ static const struct of_device_id imx_rproc_of_match[] = {
 	{ .compatible = "fsl,imx8ulp-cm33", .data = &imx_rproc_cfg_imx8ulp },
 	{ .compatible = "fsl,imx93-cm33", .data = &imx_rproc_cfg_imx93 },
 	{ .compatible = "fsl,imx95-cm7", .data = &imx_rproc_cfg_imx95_m7 },
+	{ .compatible = "fsl,imx94-cm7", .data = &imx_rproc_cfg_imx94_m7 },
+	{ .compatible = "fsl,imx94-cm33s", .data = &imx_rproc_cfg_imx94_m33s },
 	{},
 };
 MODULE_DEVICE_TABLE(of, imx_rproc_of_match);
