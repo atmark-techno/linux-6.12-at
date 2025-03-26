@@ -691,7 +691,7 @@ static ssize_t setwake_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
 	struct imx_rpmsg_gpio_port *port = dev_get_drvdata(dev);
-	int ret = count, tmp;
+	int ret = count, tmp, irq;
 	char *dup, *parse, *word;
 	u32 irq_type = IRQ_TYPE_NONE, cur_irq_type;
 
@@ -746,8 +746,17 @@ static ssize_t setwake_store(struct device *dev, struct device_attribute *attr,
 			continue;
 		}
 
+		irq = gpiod_to_irq(desc);
+		if (irq < 0) {
+			dev_warn(dev, "setwake: failed to translate to IRQ on gpio%d pin %d: irq %d\n",
+				 port->idx, pin, irq);
+			ret = (ret < 0) ? ret : -EINVAL;
+			continue;
+		}
+
 		port->gpio_pins[pin].user_wakeup = (irq_type != IRQ_TYPE_NONE);
 		port->gpio_pins[pin].irq_type = irq_type;
+		port->gpio_pins[pin].irq = irq;
 	}
 
 	kfree(dup);
@@ -873,13 +882,7 @@ imx_rpmsg_gpio_enable_wakeup(struct imx_rpmsg_gpio_port *port)
 			goto fail_free_desc;
 		}
 
-		irq = gpiod_to_irq(desc);
-		if (irq < 0) {
-			dev_warn(port->gc.parent,
-				 "GPIO pin %d, failed to translate to IRQ: err %d\n",
-				 i, irq);
-			goto fail_unlock_irq;
-		}
+		irq = port->gpio_pins[i].irq;
 
 		err = enable_irq_wake(irq);
 		if (err) {
@@ -898,7 +901,6 @@ imx_rpmsg_gpio_enable_wakeup(struct imx_rpmsg_gpio_port *port)
 		}
 
 		port->gpio_pins[i].desc = desc;
-		port->gpio_pins[i].irq = irq;
 
 		continue;
 
