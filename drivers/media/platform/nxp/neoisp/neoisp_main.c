@@ -39,7 +39,7 @@ static int neoisp_regfield_alloc(struct device *dev, struct neoisp_dev_s *neoisp
 	struct reg_field default_regf = REG_FIELD(0, 0, 31);
 
 	for (idx = 0; idx < NEOISP_FIELD_COUNT; idx++) {
-		default_regf.reg = neoisp_fields_a[idx];
+		default_regf.reg = neoispd->info->regs[idx];
 		neoispd->regs.fields[idx] =
 			devm_regmap_field_alloc(dev, neoispd->regmap, default_regf);
 		if (IS_ERR(neoispd->regs.fields[idx]))
@@ -1633,15 +1633,15 @@ static void neoisp_get_stats(struct neoisp_dev_s *neoispd, struct neoisp_buffer_
 	memcpy(&dest->mems.hist, &src[offset], size);
 
 	/* get drc local sum stats from memory */
-	neoisp_get_offsize(NEO_DRC_LOCAL_SUM_MAP, &offset, &size);
+	neoisp_get_offsize(neoispd->info->mems->drc_local_sum, &offset, &size);
 	memcpy(&dest->mems.drc.drc_local_sum, &src[offset], size);
 
 	/* get drc hist roi0 stats from memory */
-	neoisp_get_offsize(NEO_DRC_GLOBAL_HIST_ROI0_MAP, &offset, &size);
+	neoisp_get_offsize(neoispd->info->mems->drc_global_hist_roi0, &offset, &size);
 	memcpy(&dest->mems.drc.drc_global_hist_roi0, &src[offset], size);
 
 	/* get drc hist roi1 stats from memory */
-	neoisp_get_offsize(NEO_DRC_GLOBAL_HIST_ROI1_MAP, &offset, &size);
+	neoisp_get_offsize(neoispd->info->mems->drc_global_hist_roi1, &offset, &size);
 	memcpy(&dest->mems.drc.drc_global_hist_roi1, &src[offset], size);
 }
 
@@ -2095,6 +2095,7 @@ static int neoisp_probe(struct platform_device *pdev)
 	if (!neoisp_dev)
 		return -ENOMEM;
 	neoisp_dev->pdev = pdev;
+	platform_set_drvdata(pdev, neoisp_dev);
 	info = (struct neoisp_info_s *)of_device_get_match_data(dev);
 
 	ret = devm_clk_bulk_get_all(dev, &neoisp_dev->clks);
@@ -2134,8 +2135,6 @@ static int neoisp_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
-
-	platform_set_drvdata(pdev, neoisp_dev);
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, NEOISP_SUSPEND_TIMEOUT_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -2270,10 +2269,19 @@ static const struct dev_pm_ops neoisp_pm = {
 
 static const struct neoisp_info_s neoisp_v1_data = {
 	.neoisp_hw_ver = NEO_ISP_V1,
+	.regs = neoisp_fields_a_v1,
+	.mems = &active_block_map[NEO_ISP_V1],
+};
+
+static const struct neoisp_info_s neoisp_v2_data = {
+	.neoisp_hw_ver = NEO_ISP_V2,
+	.regs = neoisp_fields_a_v2,
+	.mems = &active_block_map[NEO_ISP_V2],
 };
 
 static const struct of_device_id neoisp_dt_ids[] = {
 	{ .compatible = "nxp,imx95-a0-neoisp", .data = &neoisp_v1_data },
+	{ .compatible = "nxp,imx95-b0-neoisp", .data = &neoisp_v2_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, neoisp_dt_ids);

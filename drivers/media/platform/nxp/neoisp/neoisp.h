@@ -2,7 +2,7 @@
 /*
  * NEOISP main header file
  *
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  */
 
 #ifndef NEOISP_H
@@ -129,16 +129,22 @@ enum neoisp_node_e {
  * structs
  */
 
+struct neoisp_dev_s;
+
 /*
  * struct neoisp_info_s - ISP Hardware various information
  *
- * @isp_ver: ISP version
+ * @neoisp_hw_ver: ISP version
+ * @regs: The active registers of ISP version
+ * @mems: The active memory blocks of ISP version
  *
  * This structure contains information about the ISP specific to a particular
  * ISP model, version, or integration in a particular SoC.
  */
 struct neoisp_info_s {
 	enum neoisp_version_e neoisp_hw_ver;
+	const int *regs;
+	const struct isp_block_map_s *mems;
 };
 
 struct neoisp_node_desc_s {
@@ -214,6 +220,7 @@ struct neoisp_job_s {
 };
 
 struct neoisp_dev_s {
+	const struct neoisp_info_s *info;
 	struct platform_device *pdev;
 	void __iomem *mmio;
 	void __iomem *mmio_tcm;
@@ -269,7 +276,8 @@ struct neoisp_mod_params_s {
 /*
  * globals
  */
-extern const int neoisp_fields_a[NEOISP_FIELD_COUNT]; /* array of all fields offsets */
+extern const int neoisp_fields_a_v1[NEOISP_FIELD_COUNT]; /* array of all V1 fields offsets */
+extern const int neoisp_fields_a_v2[NEOISP_FIELD_COUNT]; /* array of all V2 fields offsets */
 extern struct regmap_config neoisp_regmap_config;
 extern const struct v4l2_frmsize_stepwise neoisp_frmsize_stepwise;
 extern const struct neoisp_fmt_s formats_vcap[NEOISP_FMT_VCAP_COUNT];
