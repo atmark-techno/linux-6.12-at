@@ -5,6 +5,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/i3c/i3c.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/phy/phy-imx8-pcie.h>
 #include <dt-bindings/pwm/pwm.h>
@@ -317,6 +318,20 @@
 	pinctrl-0 = <&pinctrl_tpm6>;
 	pwm-rst;
 	status = "okay";
+};
+
+&i3c2 {
+	i2c-scl-hz = <400000>;
+	pinctrl-0 = <&pinctrl_i3c2>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	pca9570: gpio@24 {
+		compatible = "nxp,pca9570";
+		reg = <0x24 0 (I2C_FILTER)>;
+		#gpio-cells = <2>;
+		gpio-controller;
+	};
 };
 
 &flexcan2 {
@@ -749,6 +764,13 @@
 	pinctrl_hp: hpgrp {
 		fsl,pins = <
 			IMX95_PAD_GPIO_IO21__GPIO2_IO_BIT21		0x31e
+		>;
+	};
+
+	pinctrl_i3c2: i3c2grp {
+		fsl,pins = <
+			IMX95_PAD_ENET1_MDC__I3C2_SCL			0x4000019e
+			IMX95_PAD_ENET1_MDIO__I3C2_SDA			0x4000019e
 		>;
 	};
 
