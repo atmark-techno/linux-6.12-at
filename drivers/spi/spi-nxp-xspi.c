@@ -325,9 +325,6 @@
 /* Access flash memory using IP bus only */
 #define XSPI_QUIRK_USE_IP_ONLY	BIT(0)
 
-/* Disable DTR */
-#define XSPI_QUIRK_DISABLE_DTR	BIT(1)
-
 struct nxp_xspi_devtype_data {
 	unsigned int rxfifo;
 	unsigned int txfifo;
@@ -1272,7 +1269,7 @@ static int nxp_xspi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to enable clock");
 
-	/* Clear pontential interrupt by write xspi errstat */
+	/* Clear potential interrupt by write xspi errstat */
 	xspi_writel(xspi, 0xFFFFFFFF, xspi->iobase + XSPI_ERRSTAT);
 	xspi_writel(xspi, 0xFFFFFFFF, xspi->iobase + XSPI_FR);
 
