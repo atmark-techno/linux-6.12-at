@@ -1192,6 +1192,28 @@ static const struct spi_controller_mem_caps nxp_xspi_mem_caps = {
 	.dtr = true,
 };
 
+static void nxp_xspi_cleanup(void *data)
+{
+	struct nxp_xspi *xspi = data;
+
+	pm_runtime_get_sync(xspi->dev);
+
+	/* disable interrupt */
+	xspi_writel(xspi, 0, xspi->iobase + XSPI_RSER);
+	/* clear all the internal logic flags */
+	xspi_writel(xspi, 0xffffffff, xspi->iobase + XSPI_FR);
+	/* disable the hardware */
+	xspi_writel(xspi, XSPI_MCR_MDIS, xspi->iobase + XSPI_MCR);
+
+	nxp_xspi_clk_disable_unprep(xspi);
+
+	if (xspi->ahb_addr)
+		iounmap(xspi->ahb_addr);
+
+	pm_runtime_disable(xspi->dev);
+	pm_runtime_put_noidle(xspi->dev);
+}
+
 static int nxp_xspi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1267,6 +1289,10 @@ static int nxp_xspi_probe(struct platform_device *pdev)
 
 	devm_mutex_init(dev, &xspi->lock);
 
+	ret = devm_add_action_or_reset(dev, nxp_xspi_cleanup, xspi);
+	if (ret)
+		return ret;
+
 	ctlr->bus_num = -1;
 	ctlr->num_chipselect = 1;
 	ctlr->mem_ops = &nxp_xspi_mem_ops;
@@ -1274,28 +1300,6 @@ static int nxp_xspi_probe(struct platform_device *pdev)
 	ctlr->dev.of_node = dev->of_node;
 
 	return devm_spi_register_controller(dev, ctlr);
-}
-
-static void nxp_xspi_remove(struct platform_device *pdev)
-{
-	struct nxp_xspi *xspi = platform_get_drvdata(pdev);
-
-	pm_runtime_get_sync(xspi->dev);
-
-	/* disable interrupt */
-	xspi_writel(xspi, 0, xspi->iobase + XSPI_RSER);
-	/* clear all the internal logic flags */
-	xspi_writel(xspi, 0xffffffff, xspi->iobase + XSPI_FR);
-	/* disable the hardware */
-	xspi_writel(xspi, XSPI_MCR_MDIS, xspi->iobase + XSPI_MCR);
-
-	nxp_xspi_clk_disable_unprep(xspi);
-
-	if (xspi->ahb_addr)
-		iounmap(xspi->ahb_addr);
-
-	pm_runtime_disable(xspi->dev);
-	pm_runtime_put_noidle(xspi->dev);
 }
 
 static int nxp_xspi_runtime_suspend(struct device *dev)
@@ -1376,7 +1380,6 @@ static struct platform_driver nxp_xspi_driver = {
 		.pm =   pm_ptr(&nxp_xspi_pm_ops),
 	},
 	.probe          = nxp_xspi_probe,
-	.remove_new	= nxp_xspi_remove,
 };
 module_platform_driver(nxp_xspi_driver);
 
