@@ -15,6 +15,8 @@
 #define NETC_TMR_CTRL			0x0080
 #define  TMR_CTRL_CK_SEL		GENMASK(1, 0)
 #define  TMR_CTRL_TE			BIT(2)
+#define  TMR_ETEP1			BIT(8)
+#define  TMR_ETEP2			BIT(9)
 #define  TMR_COMP_MODE			BIT(15)
 #define  TMR_CTRL_TCLK_PERIOD		GENMASK(25, 16)
 #define  TMR_CTRL_FS			BIT(28)
@@ -31,9 +33,16 @@
 #define  TMR_TEVENT_ETS2EN		BIT(25)
 #define  TMR_TEVENT_ETS1_OVEN		BIT(28)
 #define  TMR_TEVENT_ETS2_OVEN		BIT(29)
+#define  TMR_TEVENT_ETS1		(TMR_TEVENT_ETS1_THREN | \
+					 TMR_TEVENT_ETS1EN | TMR_TEVENT_ETS1_OVEN)
+#define  TMR_TEVENT_ETS2		(TMR_TEVENT_ETS2_THREN | \
+					 TMR_TEVENT_ETS2EN | TMR_TEVENT_ETS2_OVEN)
 
 #define NETC_TMR_TEMASK			0x0088
 #define NETC_TMR_STAT			0x0094
+#define  TMR_STAT_ETS1_VLD		BIT(24)
+#define  TMR_STAT_ETS2_VLD		BIT(25)
+
 #define NETC_TMR_CNT_L			0x0098
 #define NETC_TMR_CNT_H			0x009c
 #define NETC_TMR_ADD			0x00a0
@@ -84,6 +93,8 @@
 #define NETC_TMR_SYSCLK_RATE		333333333UL
 
 #define NETC_TMR_FIPER_PW		0x1f
+#define NETC_TMR_ETTS_NUM		2
+#define NETC_TMR_DEFAULT_ETTF_THR	7
 
 #define netc_timer_rd(p, o)		netc_read((p)->base + (o))
 #define netc_timer_wr(p, o, v)		netc_write((p)->base + (o), v)
@@ -243,6 +254,44 @@ static void netc_timer_adjust_period(struct netc_timer *priv, u64 period)
 	netc_timer_wr(priv, NETC_TMR_ADD, period_frac);
 }
 
+static void netc_timer_handle_etts_event(struct netc_timer *priv, int index,
+					 bool update_event)
+{
+	u32 regoff_l, regoff_h, etts_l, etts_h, ets_vld;
+	struct ptp_clock_event event;
+
+	switch (index) {
+	case 0:
+		ets_vld = TMR_STAT_ETS1_VLD;
+		regoff_l = NETC_TMR_ETTS1_L;
+		regoff_h = NETC_TMR_ETTS1_H;
+		break;
+	case 1:
+		ets_vld = TMR_STAT_ETS2_VLD;
+		regoff_l = NETC_TMR_ETTS2_L;
+		regoff_h = NETC_TMR_ETTS2_H;
+		break;
+	default:
+		return;
+	}
+
+	if (!(netc_timer_rd(priv, NETC_TMR_STAT) & ets_vld))
+		return;
+
+	do {
+		etts_l = netc_timer_rd(priv, regoff_l);
+		etts_h = netc_timer_rd(priv, regoff_h);
+	} while (netc_timer_rd(priv, NETC_TMR_STAT) & ets_vld);
+
+	if (update_event) {
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = index;
+		event.timestamp = ((u64) etts_h) << 32;
+		event.timestamp |= etts_l;
+		ptp_clock_event(priv->clock, &event);
+	}
+}
+
 static irqreturn_t netc_timer_isr(int irq, void *data)
 {
 	struct netc_timer *priv = data;
@@ -253,9 +302,6 @@ static irqreturn_t netc_timer_isr(int irq, void *data)
 
 	tmr_event = netc_timer_rd(priv, NETC_TMR_TEVENT);
 	tmr_emask = netc_timer_rd(priv, NETC_TMR_TEMASK);
-
-	/* Clear interrupts status */
-	netc_timer_wr(priv, NETC_TMR_TEVENT, tmr_event);
 
 	tmr_event &= tmr_emask;
 	if (tmr_event & TMR_TEVENT_PPEN_ALL) {
@@ -269,6 +315,15 @@ static irqreturn_t netc_timer_isr(int irq, void *data)
 		netc_timer_wr(priv, NETC_TMR_TEMASK, tmr_emask);
 		netc_timer_alarm_write(priv, NETC_TMR_DEFAULT_ALARM, 0);
 	}
+
+	if (tmr_event & TMR_TEVENT_ETS1)
+		netc_timer_handle_etts_event(priv, 0, true);
+
+	if (tmr_event & TMR_TEVENT_ETS2)
+		netc_timer_handle_etts_event(priv, 1, true);
+
+	/* Clear interrupts status */
+	netc_timer_wr(priv, NETC_TMR_TEVENT, tmr_event);
 
 	return IRQ_HANDLED;
 }
@@ -445,6 +500,55 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 	return 0;
 }
 
+static int netc_timer_enable_extts(struct netc_timer *priv,
+				   struct ptp_clock_request *rq, int on)
+{
+	u32 ets_emask, tmr_emask, tmr_ctrl, ettp_bit;
+	unsigned long flags;
+
+	/* Reject requests to enable time stamping on both edges */
+	if ((rq->extts.flags & PTP_ENABLE_FEATURE) &&
+	    (rq->extts.flags & PTP_STRICT_FLAGS) &&
+	    (rq->extts.flags & PTP_EXTTS_EDGES) == PTP_EXTTS_EDGES)
+		return -EOPNOTSUPP;
+
+	switch (rq->extts.index) {
+	case 0:
+		ettp_bit = TMR_ETEP1;
+		ets_emask = TMR_TEVENT_ETS1;
+		break;
+	case 1:
+		ettp_bit = TMR_ETEP2;
+		ets_emask = TMR_TEVENT_ETS2;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	netc_timer_handle_etts_event(priv, rq->extts.index, false);
+	tmr_emask = netc_timer_rd(priv, NETC_TMR_TEMASK);
+	if (on) {
+		tmr_ctrl = netc_timer_rd(priv, NETC_TMR_CTRL);
+		if (rq->extts.flags & PTP_FALLING_EDGE)
+			tmr_ctrl |= ettp_bit;
+		else
+			tmr_ctrl &= ~ettp_bit;
+
+		netc_timer_wr(priv, NETC_TMR_CTRL, tmr_ctrl);
+		tmr_emask |= ets_emask;
+	} else {
+		tmr_emask &= ~ets_emask;
+	}
+
+	netc_timer_wr(priv, NETC_TMR_TEMASK, tmr_emask);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
 static int netc_timer_enable(struct ptp_clock_info *ptp,
 			     struct ptp_clock_request *rq, int on)
 {
@@ -456,7 +560,7 @@ static int netc_timer_enable(struct ptp_clock_info *ptp,
 	case PTP_CLK_REQ_PPS:
 		return netc_timer_enable_pps(priv, rq, on);
 	case PTP_CLK_REQ_EXTTS:
-		/* TODO */
+		return netc_timer_enable_extts(priv, rq, on);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -570,6 +674,7 @@ static int netc_timer_init(struct netc_timer *priv)
 	for (i = 0; i < NETC_TMR_FIPER_NUM; i++)
 		fiper_ctrl |= FIPER_CTRL_DIS(i);
 	netc_timer_wr(priv, NETC_TMR_FIPER_CTRL, fiper_ctrl);
+	netc_timer_wr(priv, NETC_TMR_ECTRL, NETC_TMR_DEFAULT_ETTF_THR);
 
 	ktime_get_real_ts64(&now);
 	ns = timespec64_to_ns(&now);
