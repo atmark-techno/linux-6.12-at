@@ -6,7 +6,7 @@
  * "David Plowman <david.plowman@raspberrypi.com>" and
  * "Nick Hollinghurst <nick.hollinghurst@raspberrypi.com>"
  *
- * Copyright 2023-2024 NXP
+ * Copyright 2023-2025 NXP
  * Author: Aymen Sghaier (aymen.sghaier@nxp.com)
  */
 
@@ -168,6 +168,15 @@ static int neoisp_node_buffer_prepare(struct vb2_buffer *vb)
 	__u32 num_planes = NODE_IS_MPLANE(node) ?
 		node->format.fmt.pix_mp.num_planes : 1;
 	__u32 i;
+
+	if (NODE_IS_META(node) && NODE_IS_OUTPUT(node) &&
+	    vb->planes[0].bytesused != node->format.fmt.meta.buffersize) {
+		dev_err(&neoispd->pdev->dev,
+				"%s: Meta buffer size mismatch for node %s got %d expected %d\n",
+				__func__, NODE_NAME(node),
+				vb->planes[0].bytesused, node->format.fmt.meta.buffersize);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < num_planes; i++) {
 		size = NODE_IS_MPLANE(node)
@@ -677,13 +686,12 @@ static int neoisp_set_pipe_conf(struct neoisp_dev_s *neoispd)
 	inp1_addr = get_addr(buf_inp1, 0) + (nd->crop.left * ibpp) + (nd->crop.top * inp1_stride);
 	cfg->img_conf_cam0_ibpp1 = nd->neoisp_format->bpp_enc;
 
-	regmap_field_write(neoispd->regs.fields[NEO_PIPE_CONF_IMG_CONF_CAM0_IDX],
+	regmap_field_update_bits_base(neoispd->regs.fields[NEO_PIPE_CONF_IMG_CONF_CAM0_IDX],
+			NEO_PIPE_CONF_IMG_CONF_CAM0_IBPP0_MASK
+			| NEO_PIPE_CONF_IMG_CONF_CAM0_IBPP1_MASK,
 			NEO_PIPE_CONF_IMG_CONF_CAM0_IBPP0_SET(cfg->img_conf_cam0_ibpp0)
-			| NEO_PIPE_CONF_IMG_CONF_CAM0_INALIGN0_SET(cfg->img_conf_cam0_inalign0)
-			| NEO_PIPE_CONF_IMG_CONF_CAM0_LPALIGN0_SET(cfg->img_conf_cam0_lpalign0)
-			| NEO_PIPE_CONF_IMG_CONF_CAM0_IBPP1_SET(cfg->img_conf_cam0_ibpp1)
-			| NEO_PIPE_CONF_IMG_CONF_CAM0_INALIGN1_SET(cfg->img_conf_cam0_inalign1)
-			| NEO_PIPE_CONF_IMG_CONF_CAM0_LPALIGN1_SET(cfg->img_conf_cam0_lpalign1));
+			| NEO_PIPE_CONF_IMG_CONF_CAM0_IBPP1_SET(cfg->img_conf_cam0_ibpp1),
+			NULL, false, false);
 	regmap_field_write(neoispd->regs.fields[NEO_PIPE_CONF_IMG_SIZE_CAM0_IDX],
 			NEO_PIPE_CONF_IMG_SIZE_CAM0_WIDTH_SET(width)
 			| NEO_PIPE_CONF_IMG_SIZE_CAM0_HEIGHT_SET(height));
@@ -791,11 +799,10 @@ static void neoisp_queue_job(struct neoisp_dev_s *neoispd,
 		struct neoisp_node_group_s *node_group)
 {
 	neoisp_set_packetizer(neoispd);
+	neoisp_set_pipe_conf(neoispd);
 
 	neoisp_update_ctx(neoispd, node_group->id);
 	neoisp_program_ctx(neoispd, node_group->id);
-
-	neoisp_set_pipe_conf(neoispd);
 
 	/* kick off the hw */
 	regmap_field_write(neoispd->regs.fields[NEO_PIPE_CONF_TRIG_CAM0_IDX],
