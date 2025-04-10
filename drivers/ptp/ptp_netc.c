@@ -153,6 +153,27 @@ static u64 netc_timer_cur_time_read(struct netc_timer *priv)
 	return ns;
 }
 
+static u64 netc_timer_offset_read(struct netc_timer *priv)
+{
+	u32 tmr_off_l, tmr_off_h;
+	u64 offset;
+
+	tmr_off_l = netc_timer_rd(priv, NETC_TMR_OFF_L);
+	tmr_off_h = netc_timer_rd(priv, NETC_TMR_OFF_H);
+	offset = (((u64)tmr_off_h) << 32) | tmr_off_l;
+
+	return offset;
+}
+
+static void netc_timer_offset_write(struct netc_timer *priv, u64 offset)
+{
+	u32 tmr_off_h = upper_32_bits(offset);
+	u32 tmr_off_l = lower_32_bits(offset);
+
+	netc_timer_wr(priv, NETC_TMR_OFF_L, tmr_off_l);
+	netc_timer_wr(priv, NETC_TMR_OFF_H, tmr_off_h);
+}
+
 u64 netc_timer_get_current_time(struct pci_dev *timer_dev)
 {
 	struct netc_timer *priv;
@@ -346,18 +367,23 @@ static int netc_timer_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 static int netc_timer_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct netc_timer *priv = ptp_to_netc_timer(ptp);
-	u64 adj_ns = abs(delta);
-	u64 ns;
+	u64 tmr_cnt, tmr_off;
 
 	guard(spinlock_irqsave)(&priv->lock);
 
-	ns = netc_timer_cnt_read(priv);
-	if (delta < 0)
-		ns -= adj_ns;
-	else
-		ns += adj_ns;
+	tmr_off = netc_timer_offset_read(priv);
+	if (delta < 0 && tmr_off < abs(delta)) {
+		delta += tmr_off;
+		if (!tmr_off)
+			netc_timer_offset_write(priv, 0);
 
-	netc_timer_cnt_write(priv, ns);
+		tmr_cnt = netc_timer_cnt_read(priv);
+		tmr_cnt += delta;
+		netc_timer_cnt_write(priv, tmr_cnt);
+	} else {
+		tmr_off += delta;
+		netc_timer_offset_write(priv, tmr_off);
+	}
 
 	return 0;
 }
@@ -387,6 +413,7 @@ static int netc_timer_settime64(struct ptp_clock_info *ptp,
 
 	guard(spinlock_irqsave)(&priv->lock);
 
+	netc_timer_offset_write(priv, 0);
 	netc_timer_cnt_write(priv, ns);
 
 	return 0;
