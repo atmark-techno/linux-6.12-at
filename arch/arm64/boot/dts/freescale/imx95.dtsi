@@ -1295,6 +1295,7 @@
 				bus-width = <8>;
 				fsl,tuning-start-tap = <1>;
 				fsl,tuning-step= <2>;
+				iommus = <&smmu 0x1>;
 				status = "disabled";
 			};
 
@@ -1312,6 +1313,7 @@
 				bus-width = <4>;
 				fsl,tuning-start-tap = <1>;
 				fsl,tuning-step= <2>;
+				iommus = <&smmu 0x2>;
 				status = "disabled";
 			};
 
@@ -1329,6 +1331,7 @@
 				bus-width = <4>;
 				fsl,tuning-start-tap = <1>;
 				fsl,tuning-step= <2>;
+				iommus = <&smmu 0x3>;
 				status = "disabled";
 			};
 		};
