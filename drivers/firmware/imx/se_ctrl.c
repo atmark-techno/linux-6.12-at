@@ -88,6 +88,8 @@ struct se_var_info {
 	uint8_t board_type;
 	u16 soc_id;
 	u16 soc_rev;
+	u32 fw_vers_word;
+	u32 commit_sha1;
 	struct se_fw_load_info load_fw;
 };
 
@@ -663,6 +665,20 @@ out:
 	return ret;
 }
 
+static bool runtime_fw_status(struct se_if_priv *priv)
+{
+	/*
+	 * Initializing to false as not sure if
+	 * the run-time FW status can be fetched for the SoC.
+	 */
+	bool fw_prsnt_n_running = false;
+
+	if (get_se_soc_id(priv) == SOC_ID_OF_IMX95 || get_se_soc_id(priv) == SOC_ID_OF_IMX94)
+		fw_prsnt_n_running =
+			(var_se_info.fw_vers_word & 0x1000000) ? true : false;
+
+	return fw_prsnt_n_running;
+}
 /*
  * get_se_soc_id() - to fetch the soc_id of the platform
  *
@@ -745,6 +761,11 @@ static int se_soc_info(struct se_if_priv *priv)
 	 */
 	if (var_se_info.soc_rev)
 		return err;
+
+	err = ele_get_fw_version(priv, &var_se_info.fw_vers_word,
+				 &var_se_info.commit_sha1);
+	if (err)
+		dev_err(priv->dev, "Failed to fetch FW version");
 
 	if (info_list->se_fetch_soc_info) {
 		err = info_list->se_fetch_soc_info(priv, &data);
@@ -834,6 +855,7 @@ static int se_load_firmware(struct se_if_priv *priv)
 		return 0;
 
 	se_img_file_to_load = load_fw->se_fw_img_nm->seco_fw_nm_in_rfs;
+
 	if (load_fw->imem.state == ELE_IMEM_STATE_BAD &&
 			load_fw->se_fw_img_nm->prim_fw_nm_in_rfs)
 		se_img_file_to_load = load_fw->se_fw_img_nm->prim_fw_nm_in_rfs;
@@ -882,6 +904,10 @@ static int se_load_firmware(struct se_if_priv *priv)
 	if (!ret)
 		load_fw->is_fw_loaded = true;
 
+	ret = ele_get_fw_version(priv, &var_se_info.fw_vers_word,
+				 &var_se_info.commit_sha1);
+	if (ret)
+		dev_err(priv->dev, "Failed to fetch FW version");
 exit:
 	return ret;
 }
@@ -2170,7 +2196,7 @@ static int se_if_probe(struct platform_device *pdev)
 			info_list->se_fw_img_nm.seco_fw_nm_in_rfs) {
 		load_fw = get_load_fw_instance(priv);
 		load_fw->se_fw_img_nm = &info_list->se_fw_img_nm;
-		load_fw->is_fw_loaded = false;
+		load_fw->is_fw_loaded = runtime_fw_status(priv);
 
 		if (info_list->se_fw_img_nm.prim_fw_nm_in_rfs) {
 			/* allocate buffer where SE store encrypted IMEM */
