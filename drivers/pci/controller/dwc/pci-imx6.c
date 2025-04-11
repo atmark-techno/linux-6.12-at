@@ -168,6 +168,7 @@ struct imx_pcie {
 	int			host_wake_irq;
 	bool			link_is_up;
 	bool			enable_ext_refclk;
+	bool			pll_locked;
 	bool			supports_clkreq;
 	struct clk_bulk_data	*clks;
 	int			num_clks;
@@ -599,9 +600,11 @@ static int imx95_pcie_wait_for_phy_pll_lock(struct imx_pcie *imx_pcie)
 				     PHY_PLL_LOCK_WAIT_USLEEP_MAX,
 				     PHY_PLL_LOCK_WAIT_TIMEOUT)) {
 		dev_err(dev, "PCIe PLL lock timeout\n");
+		imx_pcie->pll_locked = false;
 		return -ETIMEDOUT;
 	}
 
+	imx_pcie->pll_locked = true;
 	return 0;
 }
 
@@ -1586,6 +1589,14 @@ static int imx_pcie_resume_noirq(struct device *dev)
 			return ret;
 	} else {
 		ret = dw_pcie_resume_noirq(imx_pcie->pci);
+		/*
+		 * PLL lock might be failed on i.MX95 randomly in corner case,
+		 * re-initialized it to workaround this issue.
+		 */
+		if (imx_pcie->pll_locked == false) {
+			imx_pcie->pci->suspended = true;
+			ret = dw_pcie_resume_noirq(imx_pcie->pci);
+		}
 		if (imx_pcie->link_is_up == false && ret == -ETIMEDOUT)
 			ret = 0;
 		if (ret)
