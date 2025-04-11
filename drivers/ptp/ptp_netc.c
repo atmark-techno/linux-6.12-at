@@ -450,7 +450,7 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 static int net_timer_enable_perout(struct netc_timer *priv,
 				   struct ptp_clock_request *rq, int on)
 {
-	u32 tmr_emask, tmr_ctrl, fiper, fiper_ctrl;
+	u32 tmr_emask, fiper, fiper_ctrl;
 	struct timespec64 period, stime;
 	u64 alarm, period_ns, cur_time;
 	u32 channel, fiper_pw;
@@ -464,7 +464,6 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 
 	guard(spinlock_irqsave)(&priv->lock);
 
-	tmr_ctrl = netc_timer_rd(priv, NETC_TMR_CTRL);
 	tmr_emask = netc_timer_rd(priv, NETC_TMR_TEMASK);
 	fiper_ctrl = netc_timer_rd(priv, NETC_TMR_FIPER_CTRL);
 	if (!on) {
@@ -480,7 +479,6 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 		stime.tv_nsec = rq->perout.start.nsec;
 
 		tmr_emask |= TMR_TEVNET_PPEN(channel);
-		tmr_ctrl &= ~TMR_ALARM1P;
 
 		/* Set to desired FIPER interval in ns - TCLK_PERIOD */
 		fiper = period_ns - priv->period_int;
@@ -510,7 +508,6 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 		alarm = alarm * priv->period_int;
 	}
 
-	netc_timer_wr(priv, NETC_TMR_CTRL, tmr_ctrl);
 	netc_timer_wr(priv, NETC_TMR_TEMASK, tmr_emask);
 	netc_timer_wr(priv, NETC_TMR_FIPER(channel), fiper);
 	netc_timer_alarm_write(priv, alarm, 0);
