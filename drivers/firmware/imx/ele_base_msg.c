@@ -808,8 +808,7 @@ int ele_debug_dump(struct se_if_priv *priv)
 				  rx_msg->data[13], rx_msg->data[14],
 				  rx_msg->data[15], rx_msg->data[16],
 				  rx_msg->data[17], rx_msg->data[18],
-				  rx_msg->data[19], rx_msg->data[20],
-				  rx_msg->data[21], rx_msg->data[22]);
+				  rx_msg->data[19], rx_msg->data[20]);
 
 			dev_err(priv->dev, "%s", dump_data);
 		} else {

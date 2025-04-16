@@ -148,20 +148,6 @@ int v2x_resume(struct se_if_priv *priv)
 			if (ret)
 				dev_warn(priv->dev, "Failed to restart v2x-rng.");
 		}
-		do {
-			v2x_state_fetch_count--;
-			ret = ele_get_v2x_fw_state(ele_priv, &v2x_fw_state);
-			if (ret)
-				dev_warn(priv->dev, "Failed to fetch the v2x-fw-state via ELE.");
-		} while (!is_v2x_fw_running(v2x_fw_state) && v2x_state_fetch_count);
-
-		if (!v2x_state_fetch_count) {
-			dev_err(priv->dev, "V2X FW Resume Failed.\n");
-		} else {
-			ret = v2x_start_rng(priv);
-			if (ret)
-				dev_warn(priv->dev, "Failed to restart v2x-rng.");
-		}
 	} else {
 		ret = v2x_pwr_state(priv, V2X_PWR_ON_REQ);
 		if (ret)
