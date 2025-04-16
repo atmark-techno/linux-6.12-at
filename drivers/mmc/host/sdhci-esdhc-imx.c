@@ -216,6 +216,8 @@
 #define ESDHC_FLAG_SKIP_CD_WAKE		BIT(18)
 /* need request bus freq during low power */
 #define ESDHC_FLAG_BUSFREQ		BIT(19)
+/* the controller has dummy pad for clock loopback */
+#define ESDHC_FLAG_DUMMY_PAD		BIT(20)
 
 #define ESDHC_AUTO_TUNING_WINDOW	3
 
@@ -370,6 +372,15 @@ static struct esdhc_soc_data usdhc_imx8mq_data = {
 	.quirks = SDHCI_QUIRK_NO_LED,
 };
 
+static struct esdhc_soc_data usdhc_imx95_data = {
+	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_MAN_TUNING
+			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200
+			| ESDHC_FLAG_HS400 | ESDHC_FLAG_HS400_ES
+			| ESDHC_FLAG_STATE_LOST_IN_LPMODE
+			| ESDHC_FLAG_BUSFREQ | ESDHC_FLAG_DUMMY_PAD,
+	.quirks = SDHCI_QUIRK_NO_LED,
+};
+
 static struct esdhc_soc_data usdhc_s32v234_data = {
 	.flags = ESDHC_FLAG_USDHC,
 	.quirks = SDHCI_QUIRK_NO_LED,
@@ -420,6 +431,8 @@ static const struct of_device_id imx_esdhc_dt_ids[] = {
 	{ .compatible = "fsl,imx8qxp-usdhc", .data = &usdhc_imx8qxp_data, },
 	{ .compatible = "fsl,imx8mm-usdhc", .data = &usdhc_imx8mm_data, },
 	{ .compatible = "fsl,imx8mq-usdhc", .data = &usdhc_imx8mq_data, },
+	{ .compatible = "fsl,imx94-usdhc", .data = &usdhc_imx95_data, },
+	{ .compatible = "fsl,imx95-usdhc", .data = &usdhc_imx95_data, },
 	{ .compatible = "fsl,imxrt1050-usdhc", .data = &usdhc_imxrt1050_data, },
 	{ .compatible = "nxp,s32g2-usdhc", .data = &usdhc_s32g2_data, },
 	{ .compatible = "fsl,s32v234-usdhc", .data = &usdhc_s32v234_data, },
@@ -1456,9 +1469,10 @@ static void esdhc_set_uhs_signaling(struct sdhci_host *host, unsigned timing)
 		break;
 	}
 
-	if (timing == MMC_TIMING_UHS_SDR104 ||
-	    timing == MMC_TIMING_MMC_HS200 ||
-	    timing == MMC_TIMING_MMC_HS400)
+	if (!(imx_data->socdata->flags & ESDHC_FLAG_DUMMY_PAD) &&
+	    (timing == MMC_TIMING_UHS_SDR104 ||
+	     timing == MMC_TIMING_MMC_HS200 ||
+	     timing == MMC_TIMING_MMC_HS400))
 		m |= ESDHC_MIX_CTRL_FBCLK_SEL;
 	else
 		m &= ~ESDHC_MIX_CTRL_FBCLK_SEL;
@@ -1714,7 +1728,9 @@ static void sdhc_esdhc_tuning_restore(struct sdhci_host *host)
 		writel(reg, host->ioaddr + ESDHC_TUNING_CTRL);
 
 		reg = readl(host->ioaddr + ESDHC_MIX_CTRL);
-		reg |= ESDHC_MIX_CTRL_SMPCLK_SEL | ESDHC_MIX_CTRL_FBCLK_SEL;
+		reg |= ESDHC_MIX_CTRL_SMPCLK_SEL;
+		if (!(imx_data->socdata->flags & ESDHC_FLAG_DUMMY_PAD))
+			reg |= ESDHC_MIX_CTRL_FBCLK_SEL;
 		writel(reg, host->ioaddr + ESDHC_MIX_CTRL);
 
 		writel(imx_data->boarddata.saved_tuning_delay_cell <<
