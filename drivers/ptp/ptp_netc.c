@@ -221,48 +221,38 @@ static void netc_timer_alarm_write(struct netc_timer *priv,
 	netc_timer_wr(priv, NETC_TMR_ALARM_H(index), alarm_h);
 }
 
-static void netc_timer_set_oclk_prsc(struct netc_timer *priv, u32 oclk_prsc)
+static void netc_timer_set_pps_alarm(struct netc_timer *priv)
 {
-	if (oclk_prsc < NETC_TMR_PRSC_OCK_MAX) {
-		if (oclk_prsc % 2 != 0)
-			oclk_prsc++;
-	} else {
-		oclk_prsc = NETC_TMR_PRSC_OCK_MAX;
-	}
-	priv->oclk_prsc = oclk_prsc;
+	u64 pps_stime, alarm;
 
-	if (oclk_prsc == netc_timer_rd(priv, NETC_TMR_PRSC))
-		return;
+	/* Get expected PPS trigger time */
+	pps_stime = netc_timer_cur_time_read(priv);
+	pps_stime += 1500000000ULL;
+	pps_stime = div_u64(pps_stime, 1000000000UL) * 1000000000ULL;
 
-	netc_timer_wr(priv, NETC_TMR_PRSC, priv->oclk_prsc);
+	alarm = div_u64(pps_stime, priv->period_int);
+	alarm = alarm * priv->period_int;
+
+	netc_timer_alarm_write(priv, alarm, 0);
 }
 
 static u32 netc_timer_calculate_fiper_pulse_width(struct netc_timer *priv,
 						  u32 fiper)
 {
-	u32 oclk_prsc = NETC_TMR_DEFAULT_PRSC;
 	u64 pw;
 
 	/* Set the FIPER pulse width to half FIPER interval by default.
 	 * pulse_width = (fiper / 2) / TMR_GCLK_period,
 	 * TMR_GCLK_period = NSEC_PER_SEC / TMR_GCLK_freq,
-	 * TMR_GCLK_freq = (clk_freq / oclk_prsc) MHz,
+	 * TMR_GCLK_freq = (clk_freq / oclk_prsc) Hz,
 	 * so pulse_width = fiper * clk_freq / (2 * NSEC_PER_SEC * oclk_prsc).
-	 *
-	 * The oclk_prsc value needs to be an even number, so here we use its
-	 * default value NETC_TMR_DEFAULT_PRSC to calculate the pw. If pw
-	 * exceeds the maximum value, then update the oclk_prsc.
 	 */
 	pw = (u64)fiper * priv->clk_freq;
-	/* 2 * NSEC_PER_SEC * oclk_prsc = 4000000000UL */
-	pw = div_u64(pw, 4000000000UL);
+	pw = div64_u64(pw, 2000000000UL * priv->oclk_prsc);
 
 	/* The FIPER_PW field only has 5 bits, need to update oclk_prsc */
-	if (pw > NETC_TMR_FIPER_PW) {
-		oclk_prsc = div_u64(pw, NETC_TMR_FIPER_PW) * oclk_prsc;
+	if (pw > NETC_TMR_FIPER_PW)
 		pw = NETC_TMR_FIPER_PW;
-	}
-	netc_timer_set_oclk_prsc(priv, oclk_prsc);
 
 	return pw;
 }
@@ -338,12 +328,11 @@ static irqreturn_t netc_timer_isr(int irq, void *data)
 		ptp_clock_event(priv->clock, &event);
 	}
 
-	if (tmr_event & TMR_TEVENT_ALM1EN) {
-		tmr_emask &= ~TMR_TEVENT_ALM1EN;
-
-		netc_timer_wr(priv, NETC_TMR_TEMASK, tmr_emask);
+	if (tmr_event & TMR_TEVENT_ALM1EN)
 		netc_timer_alarm_write(priv, NETC_TMR_DEFAULT_ALARM, 0);
-	}
+
+	if (tmr_event & TMR_TEVENT_ALM2EN)
+		netc_timer_alarm_write(priv, NETC_TMR_DEFAULT_ALARM, 1);
 
 	if (tmr_event & TMR_TEVENT_ETS1)
 		netc_timer_handle_etts_event(priv, 0, true);
@@ -439,12 +428,12 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 	fiper_ctrl = netc_timer_rd(priv, NETC_TMR_FIPER_CTRL);
 
 	if (on) {
-		fiper = div_u64(NSEC_PER_SEC, priv->period_int) - 1;
-		fiper = fiper * priv->period_int;
+		fiper = NSEC_PER_SEC - priv->period_int;
 		fiper_pw = netc_timer_calculate_fiper_pulse_width(priv, fiper);
 		fiper_ctrl &= ~(FIPER_CTRL_DIS(channel) | FIPER_CTRL_PW(channel));
 		fiper_ctrl |= FIPER_CTRL_SET_PW(channel, fiper_pw);
 		tmr_emask |= TMR_TEVNET_PPEN(channel);
+		netc_timer_set_pps_alarm(priv);
 	} else {
 		fiper = NETC_TMR_DEFAULT_FIPER;
 		tmr_emask &= ~TMR_TEVNET_PPEN(channel);
@@ -479,9 +468,7 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 	tmr_emask = netc_timer_rd(priv, NETC_TMR_TEMASK);
 	fiper_ctrl = netc_timer_rd(priv, NETC_TMR_FIPER_CTRL);
 	if (!on) {
-		tmr_emask &= ~(TMR_TEVNET_PPEN(channel) |
-			     TMR_TEVENT_ALM1EN);
-		tmr_ctrl &= ~TMR_CTRL_FS;
+		tmr_emask &= ~TMR_TEVNET_PPEN(channel);
 		alarm = NETC_TMR_DEFAULT_ALARM;
 		fiper = NETC_TMR_DEFAULT_FIPER;
 		fiper_ctrl |= FIPER_CTRL_DIS(channel);
@@ -492,15 +479,11 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 		stime.tv_sec = rq->perout.start.sec;
 		stime.tv_nsec = rq->perout.start.nsec;
 
-		tmr_emask |= TMR_TEVNET_PPEN(channel) | TMR_TEVENT_ALM1EN;
-		tmr_ctrl |= TMR_CTRL_FS;
+		tmr_emask |= TMR_TEVNET_PPEN(channel);
 		tmr_ctrl &= ~TMR_ALARM1P;
 
-		/* fiper is set to desired FIPER interval in ns - TCLK_PERIOD
-		 * and should be an integer multiple of TCLK_PERIOD.
-		 */
-		fiper = div_u64(period_ns, priv->period_int) - 1;
-		fiper = fiper * priv->period_int;
+		/* Set to desired FIPER interval in ns - TCLK_PERIOD */
+		fiper = period_ns - priv->period_int;
 		fiper_pw = netc_timer_calculate_fiper_pulse_width(priv, fiper);
 		if (fiper_pw == 0) {
 			dev_err(priv->dev, "The setting period is too small!\n");
@@ -679,15 +662,14 @@ EXPORT_SYMBOL_GPL(netc_timer_get_phc_index);
 
 static int netc_timer_init(struct netc_timer *priv)
 {
-	u32 tmr_ctrl, alarm_ctrl, fiper_ctrl;
+	u32 tmr_emask = TMR_TEVENT_ALM1EN | TMR_TEVENT_ALM2EN;
+	u32 tmr_ctrl, fiper_ctrl;
 	struct timespec64 now;
 	u64 ns;
 	int i;
 
 	priv->caps = netc_timer_ptp_caps;
 	priv->oclk_prsc = NETC_TMR_DEFAULT_PRSC;
-
-	alarm_ctrl = ALARM_CTRL_PG(0) | ALARM_CTRL_PG(1);
 
 	spin_lock_init(&priv->lock);
 
@@ -705,10 +687,11 @@ static int netc_timer_init(struct netc_timer *priv)
 	 * is 100MHz.
 	 */
 	netc_timer_wr(priv, NETC_TMR_PRSC, priv->oclk_prsc);
-	netc_timer_wr(priv, NETC_TMR_ALARM_CTRL, alarm_ctrl);
 	fiper_ctrl = netc_timer_rd(priv, NETC_TMR_FIPER_CTRL);
-	for (i = 0; i < NETC_TMR_FIPER_NUM; i++)
+	for (i = 0; i < NETC_TMR_FIPER_NUM; i++) {
 		fiper_ctrl |= FIPER_CTRL_DIS(i);
+		fiper_ctrl &= ~FIPER_CTRL_PG(i);
+	}
 	netc_timer_wr(priv, NETC_TMR_FIPER_CTRL, fiper_ctrl);
 	netc_timer_wr(priv, NETC_TMR_ECTRL, NETC_TMR_DEFAULT_ETTF_THR);
 
@@ -720,9 +703,10 @@ static int netc_timer_init(struct netc_timer *priv)
 	 * to TCLK_PERIOD doesn't take effect until TMR_ADD is written.
 	 */
 	tmr_ctrl |= ((priv->period_int << 16) & TMR_CTRL_TCLK_PERIOD) |
-		    TMR_COMP_MODE;
+		    TMR_COMP_MODE | TMR_CTRL_FS;
 	netc_timer_wr(priv, NETC_TMR_CTRL, tmr_ctrl);
 	netc_timer_wr(priv, NETC_TMR_ADD, priv->period_frac);
+	netc_timer_wr(priv, NETC_TMR_TEMASK, tmr_emask);
 
 	return 0;
 }
