@@ -104,6 +104,16 @@
 #define netc_timer_rd(p, o)		netc_read((p)->base + (o))
 #define netc_timer_wr(p, o, v)		netc_write((p)->base + (o), v)
 
+enum netc_pp_type {
+	NETC_PP_PPS = 1,
+	NETC_PP_PEROUT,
+};
+
+struct netc_pp {
+	enum netc_pp_type type;
+	bool enabled;
+};
+
 struct netc_timer {
 	void __iomem *base;
 	struct device *dev;
@@ -126,10 +136,9 @@ struct netc_timer {
 	 */
 	u64 base_period;
 	u32 oclk_prsc; /* must be an even value */
-	u32 fiper[NETC_TMR_FIPER_NUM];
+	struct netc_pp pp[NETC_TMR_FIPER_NUM]; /* periodic pulse */
 
 	u8 pps_channel;
-	bool pps_enabled;
 	struct dentry *debugfs_root;
 };
 
@@ -383,7 +392,8 @@ static int netc_timer_adjtime(struct ptp_clock_info *ptp, s64 delta)
 		netc_timer_offset_write(priv, tmr_off);
 	}
 
-	if (priv->pps_enabled)
+	if (priv->pp[priv->pps_channel].type == NETC_PP_PPS &&
+	    priv->pp[priv->pps_channel].enabled)
 		netc_timer_set_pps_alarm(priv);
 
 	return 0;
@@ -417,7 +427,8 @@ static int netc_timer_settime64(struct ptp_clock_info *ptp,
 	netc_timer_offset_write(priv, 0);
 	netc_timer_cnt_write(priv, ns);
 
-	if (priv->pps_enabled)
+	if (priv->pp[priv->pps_channel].type == NETC_PP_PPS &&
+	    priv->pp[priv->pps_channel].enabled)
 		netc_timer_set_pps_alarm(priv);
 
 	return 0;
@@ -428,17 +439,26 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 {
 	u32 tmr_emask, fiper, fiper_ctrl, fiper_pw;
 	u8 channel = priv->pps_channel;
+	struct netc_pp *pp;
 
 	guard(spinlock_irqsave)(&priv->lock);
+
+	pp = &priv->pp[channel];
+	if (pp->type == NETC_PP_PEROUT) {
+		dev_err(priv->dev,
+			"FIPER%u is being used for PEROUT\n", channel);
+		return -EBUSY;
+	}
 
 	tmr_emask = netc_timer_rd(priv, NETC_TMR_TEMASK);
 	fiper_ctrl = netc_timer_rd(priv, NETC_TMR_FIPER_CTRL);
 
 	if (on) {
-		if (priv->pps_enabled)
+		if (pp->enabled)
 			return 0;
 
-		priv->pps_enabled = true;
+		pp->enabled = true;
+		pp->type = NETC_PP_PPS;
 		fiper = NSEC_PER_SEC - priv->period_int;
 		fiper_pw = netc_timer_calculate_fiper_pulse_width(priv, fiper);
 		fiper_ctrl &= ~(FIPER_CTRL_DIS(channel) | FIPER_CTRL_PW(channel));
@@ -446,10 +466,10 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 		tmr_emask |= TMR_TEVNET_PPEN(channel);
 		netc_timer_set_pps_alarm(priv);
 	} else {
-		if (!priv->pps_enabled)
+		if (!pp->enabled)
 			return 0;
 
-		priv->pps_enabled = false;
+		memset(pp, 0, sizeof(*pp));
 		fiper = NETC_TMR_DEFAULT_FIPER;
 		tmr_emask &= ~TMR_TEVNET_PPEN(channel);
 		fiper_ctrl |= FIPER_CTRL_DIS(channel);
@@ -469,6 +489,7 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 	struct timespec64 period, stime;
 	u64 alarm, period_ns, cur_time;
 	u32 channel, fiper_pw;
+	struct netc_pp *pp;
 
 	if (rq->perout.flags)
 		return -EOPNOTSUPP;
@@ -479,6 +500,13 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 
 	guard(spinlock_irqsave)(&priv->lock);
 
+	pp = &priv->pp[channel];
+	if (pp->type == NETC_PP_PPS) {
+		dev_err(priv->dev,
+			"FIPER%u is being used for PPS\n", channel);
+		return -EBUSY;
+	}
+
 	tmr_emask = netc_timer_rd(priv, NETC_TMR_TEMASK);
 	fiper_ctrl = netc_timer_rd(priv, NETC_TMR_FIPER_CTRL);
 	if (!on) {
@@ -486,6 +514,7 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 		alarm = NETC_TMR_DEFAULT_ALARM;
 		fiper = NETC_TMR_DEFAULT_FIPER;
 		fiper_ctrl |= FIPER_CTRL_DIS(channel);
+		memset(pp, 0, sizeof(*pp));
 	} else {
 		period.tv_sec = rq->perout.period.sec;
 		period.tv_nsec = rq->perout.period.nsec;
@@ -522,6 +551,9 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 
 		alarm = div_u64(alarm, priv->period_int);
 		alarm = alarm * priv->period_int;
+
+		pp->type = NETC_PP_PEROUT;
+		pp->enabled = true;
 	}
 
 	netc_timer_wr(priv, NETC_TMR_TEMASK, tmr_emask);
