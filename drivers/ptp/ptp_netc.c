@@ -496,10 +496,11 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 		 * trigger is used as an indication to the fiper start down
 		 * counting. Only TMR_ALARM1 supports this mode.
 		 */
-		alarm = timespec64_to_ns(&stime);
+		alarm = timespec64_to_ns(&stime) - period_ns;
 		cur_time = netc_timer_cur_time_read(priv);
 		if (cur_time >= alarm) {
-			dev_err(priv->dev, "Start time must greater than current time!\n");
+			dev_err(priv->dev,
+				"Start time must greater than current time + pulse period\n");
 
 			return -EINVAL;
 		}
