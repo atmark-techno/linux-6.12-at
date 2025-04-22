@@ -129,6 +129,7 @@ struct netc_timer {
 	u32 fiper[NETC_TMR_FIPER_NUM];
 
 	u8 pps_channel;
+	bool pps_enabled;
 	struct dentry *debugfs_root;
 };
 
@@ -382,6 +383,9 @@ static int netc_timer_adjtime(struct ptp_clock_info *ptp, s64 delta)
 		netc_timer_offset_write(priv, tmr_off);
 	}
 
+	if (priv->pps_enabled)
+		netc_timer_set_pps_alarm(priv);
+
 	return 0;
 }
 
@@ -413,6 +417,9 @@ static int netc_timer_settime64(struct ptp_clock_info *ptp,
 	netc_timer_offset_write(priv, 0);
 	netc_timer_cnt_write(priv, ns);
 
+	if (priv->pps_enabled)
+		netc_timer_set_pps_alarm(priv);
+
 	return 0;
 }
 
@@ -428,6 +435,10 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 	fiper_ctrl = netc_timer_rd(priv, NETC_TMR_FIPER_CTRL);
 
 	if (on) {
+		if (priv->pps_enabled)
+			return 0;
+
+		priv->pps_enabled = true;
 		fiper = NSEC_PER_SEC - priv->period_int;
 		fiper_pw = netc_timer_calculate_fiper_pulse_width(priv, fiper);
 		fiper_ctrl &= ~(FIPER_CTRL_DIS(channel) | FIPER_CTRL_PW(channel));
@@ -435,6 +446,10 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 		tmr_emask |= TMR_TEVNET_PPEN(channel);
 		netc_timer_set_pps_alarm(priv);
 	} else {
+		if (!priv->pps_enabled)
+			return 0;
+
+		priv->pps_enabled = false;
 		fiper = NETC_TMR_DEFAULT_FIPER;
 		tmr_emask &= ~TMR_TEVNET_PPEN(channel);
 		fiper_ctrl |= FIPER_CTRL_DIS(channel);
