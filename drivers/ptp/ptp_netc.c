@@ -71,6 +71,7 @@
 #define NETC_TMR_FIPER_CTRL		0x00dc
 #define  FIPER_CTRL_PW(a)		(GENMASK(4, 0) << (a) * 8)
 #define  FIPER_CTRL_SET_PW(a, w)	((w) << 8 * (a))
+#define  FIPER_CTRL_FS_ALARM(a)		(BIT(5) << (a) * 8)
 #define  FIPER_CTRL_PG(a)		(BIT(6) << (a) * 8)
 #define  FIPER_CTRL_DIS(a)		(BIT(7) << (a) * 8)
 
@@ -98,6 +99,7 @@
 
 #define NETC_TMR_FIPER_PW		0x1f
 #define NETC_TMR_ETTS_NUM		2
+#define NETC_TMR_ALARM_NUM		2
 #define NETC_TMR_DEFAULT_ETTF_THR	7
 #define NETC_TMR_DEFAULT_PPS_FIPER	0
 
@@ -112,6 +114,7 @@ enum netc_pp_type {
 struct netc_pp {
 	enum netc_pp_type type;
 	bool enabled;
+	int alarm_id;
 };
 
 struct netc_timer {
@@ -139,6 +142,7 @@ struct netc_timer {
 	struct netc_pp pp[NETC_TMR_FIPER_NUM]; /* periodic pulse */
 
 	u8 pps_channel;
+	u8 alarm_bitmap;
 	struct dentry *debugfs_root;
 };
 
@@ -231,9 +235,27 @@ static void netc_timer_alarm_write(struct netc_timer *priv,
 	netc_timer_wr(priv, NETC_TMR_ALARM_H(index), alarm_h);
 }
 
+static int netc_timer_get_alarm_id(struct netc_timer *priv)
+{
+	int i;
+
+	for (i = 0; i < NETC_TMR_ALARM_NUM; i++) {
+		if (!(priv->alarm_bitmap & BIT(i))) {
+			priv->alarm_bitmap |= BIT(i);
+			break;
+		}
+	}
+
+	return i;
+}
+
 static void netc_timer_set_pps_alarm(struct netc_timer *priv)
 {
+	struct netc_pp *pp = &priv->pp[priv->pps_channel];
 	u64 pps_stime, alarm;
+
+	if (pp->type != NETC_PP_PPS || !pp->enabled)
+		return;
 
 	/* Get expected PPS trigger time */
 	pps_stime = netc_timer_cur_time_read(priv);
@@ -243,7 +265,7 @@ static void netc_timer_set_pps_alarm(struct netc_timer *priv)
 	alarm = div_u64(pps_stime, priv->period_int);
 	alarm = alarm * priv->period_int;
 
-	netc_timer_alarm_write(priv, alarm, 0);
+	netc_timer_alarm_write(priv, alarm, pp->alarm_id);
 }
 
 static u32 netc_timer_calculate_fiper_pulse_width(struct netc_timer *priv,
@@ -392,9 +414,7 @@ static int netc_timer_adjtime(struct ptp_clock_info *ptp, s64 delta)
 		netc_timer_offset_write(priv, tmr_off);
 	}
 
-	if (priv->pp[priv->pps_channel].type == NETC_PP_PPS &&
-	    priv->pp[priv->pps_channel].enabled)
-		netc_timer_set_pps_alarm(priv);
+	netc_timer_set_pps_alarm(priv);
 
 	return 0;
 }
@@ -426,10 +446,7 @@ static int netc_timer_settime64(struct ptp_clock_info *ptp,
 
 	netc_timer_offset_write(priv, 0);
 	netc_timer_cnt_write(priv, ns);
-
-	if (priv->pp[priv->pps_channel].type == NETC_PP_PPS &&
-	    priv->pp[priv->pps_channel].enabled)
-		netc_timer_set_pps_alarm(priv);
+	netc_timer_set_pps_alarm(priv);
 
 	return 0;
 }
@@ -440,6 +457,7 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 	u32 tmr_emask, fiper, fiper_ctrl, fiper_pw;
 	u8 channel = priv->pps_channel;
 	struct netc_pp *pp;
+	int alarm_id;
 
 	guard(spinlock_irqsave)(&priv->lock);
 
@@ -457,19 +475,31 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 		if (pp->enabled)
 			return 0;
 
+		alarm_id = netc_timer_get_alarm_id(priv);
+		if (alarm_id == NETC_TMR_ALARM_NUM) {
+			dev_err(priv->dev, "No available ALARMs\n");
+			return -EBUSY;
+		}
+
 		pp->enabled = true;
 		pp->type = NETC_PP_PPS;
+		pp->alarm_id = alarm_id;
+
 		fiper = NSEC_PER_SEC - priv->period_int;
 		fiper_pw = netc_timer_calculate_fiper_pulse_width(priv, fiper);
-		fiper_ctrl &= ~(FIPER_CTRL_DIS(channel) | FIPER_CTRL_PW(channel));
+		fiper_ctrl &= ~(FIPER_CTRL_DIS(channel) | FIPER_CTRL_PW(channel) |
+				FIPER_CTRL_FS_ALARM(channel));
 		fiper_ctrl |= FIPER_CTRL_SET_PW(channel, fiper_pw);
+		fiper_ctrl |= alarm_id ? FIPER_CTRL_FS_ALARM(channel) : 0;
 		tmr_emask |= TMR_TEVNET_PPEN(channel);
 		netc_timer_set_pps_alarm(priv);
 	} else {
 		if (!pp->enabled)
 			return 0;
 
+		priv->alarm_bitmap &= ~BIT(pp->alarm_id);
 		memset(pp, 0, sizeof(*pp));
+
 		fiper = NETC_TMR_DEFAULT_FIPER;
 		tmr_emask &= ~TMR_TEVNET_PPEN(channel);
 		fiper_ctrl |= FIPER_CTRL_DIS(channel);
@@ -490,6 +520,7 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 	u64 alarm, period_ns, cur_time;
 	u32 channel, fiper_pw;
 	struct netc_pp *pp;
+	int alarm_id;
 
 	if (rq->perout.flags)
 		return -EOPNOTSUPP;
@@ -510,10 +541,15 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 	tmr_emask = netc_timer_rd(priv, NETC_TMR_TEMASK);
 	fiper_ctrl = netc_timer_rd(priv, NETC_TMR_FIPER_CTRL);
 	if (!on) {
+		if (!pp->enabled)
+			return 0;
+
 		tmr_emask &= ~TMR_TEVNET_PPEN(channel);
 		alarm = NETC_TMR_DEFAULT_ALARM;
 		fiper = NETC_TMR_DEFAULT_FIPER;
 		fiper_ctrl |= FIPER_CTRL_DIS(channel);
+
+		priv->alarm_bitmap &= ~BIT(pp->alarm_id);
 		memset(pp, 0, sizeof(*pp));
 	} else {
 		period.tv_sec = rq->perout.period.sec;
@@ -532,9 +568,6 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 			return -EINVAL;
 		}
 
-		fiper_ctrl &= ~(FIPER_CTRL_DIS(channel) | FIPER_CTRL_PW(channel));
-		fiper_ctrl |= (fiper_pw << 8 * channel) & FIPER_CTRL_PW(channel);
-
 		/* alarm must be an integer multiple of TCLK_PERIOD in order
 		 * to get correct result. In addtion, In FS mode the alarm
 		 * trigger is used as an indication to the fiper start down
@@ -552,13 +585,29 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 		alarm = div_u64(alarm, priv->period_int);
 		alarm = alarm * priv->period_int;
 
-		pp->type = NETC_PP_PEROUT;
-		pp->enabled = true;
+		if (pp->enabled) {
+			alarm_id = pp->alarm_id;
+		} else {
+			alarm_id = netc_timer_get_alarm_id(priv);
+			if (alarm_id == NETC_TMR_ALARM_NUM) {
+				dev_err(priv->dev, "No available ALARMs\n");
+				return -EBUSY;
+			}
+
+			pp->type = NETC_PP_PEROUT;
+			pp->enabled = true;
+			pp->alarm_id = alarm_id;
+		}
+
+		fiper_ctrl &= ~(FIPER_CTRL_DIS(channel) | FIPER_CTRL_PW(channel) |
+				FIPER_CTRL_FS_ALARM(channel));
+		fiper_ctrl |= FIPER_CTRL_SET_PW(channel, fiper_pw);
+		fiper_ctrl |= alarm_id ? FIPER_CTRL_FS_ALARM(channel) : 0;
 	}
 
 	netc_timer_wr(priv, NETC_TMR_TEMASK, tmr_emask);
 	netc_timer_wr(priv, NETC_TMR_FIPER(channel), fiper);
-	netc_timer_alarm_write(priv, alarm, 0);
+	netc_timer_alarm_write(priv, alarm, alarm_id);
 	netc_timer_wr(priv, NETC_TMR_FIPER_CTRL, fiper_ctrl);
 
 	return 0;
@@ -765,6 +814,7 @@ static void netc_timer_deinit(struct netc_timer *priv)
 
 	netc_timer_wr(priv, NETC_TMR_TEMASK, 0);
 	netc_timer_alarm_write(priv, NETC_TMR_DEFAULT_ALARM, 0);
+	netc_timer_alarm_write(priv, NETC_TMR_DEFAULT_ALARM, 1);
 	fiper_ctrl = netc_timer_rd(priv, NETC_TMR_FIPER_CTRL);
 	for (i = 0; i < NETC_TMR_FIPER_NUM; i++) {
 		netc_timer_wr(priv, NETC_TMR_FIPER(i),
