@@ -67,6 +67,7 @@
 
 #define NETC_TMR_FIPER_CTRL		0x00dc
 #define  FIPER_CTRL_PW(a)		(GENMASK(4, 0) << (a) * 8)
+#define  FIPER_CTRL_SET_PW(a, w)	((w) << 8 * (a))
 #define  FIPER_CTRL_PG(a)		(BIT(6) << (a) * 8)
 #define  FIPER_CTRL_DIS(a)		(BIT(7) << (a) * 8)
 
@@ -95,6 +96,7 @@
 #define NETC_TMR_FIPER_PW		0x1f
 #define NETC_TMR_ETTS_NUM		2
 #define NETC_TMR_DEFAULT_ETTF_THR	7
+#define NETC_TMR_DEFAULT_PPS_FIPER	0
 
 #define netc_timer_rd(p, o)		netc_read((p)->base + (o))
 #define netc_timer_wr(p, o, v)		netc_write((p)->base + (o), v)
@@ -122,6 +124,8 @@ struct netc_timer {
 	u64 base_period;
 	u32 oclk_prsc; /* must be an even value */
 	u32 fiper[NETC_TMR_FIPER_NUM];
+
+	u8 pps_channel;
 };
 
 #define ptp_to_netc_timer(ptp)		container_of((ptp), struct netc_timer, caps)
@@ -423,6 +427,7 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 				 struct ptp_clock_request *rq, int on)
 {
 	u32 tmr_emask, fiper, fiper_ctrl, fiper_pw;
+	u8 channel = priv->pps_channel;
 
 	guard(spinlock_irqsave)(&priv->lock);
 
@@ -433,17 +438,17 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 		fiper = div_u64(NSEC_PER_SEC, priv->period_int) - 1;
 		fiper = fiper * priv->period_int;
 		fiper_pw = netc_timer_calculate_fiper_pulse_width(priv, fiper);
-		fiper_ctrl &= ~(FIPER_CTRL_DIS(0) | FIPER_CTRL_PW(0));
-		fiper_ctrl |= fiper_pw & FIPER_CTRL_PW(0);
-		tmr_emask |= TMR_TEVNET_PPEN(0);
+		fiper_ctrl &= ~(FIPER_CTRL_DIS(channel) | FIPER_CTRL_PW(channel));
+		fiper_ctrl |= FIPER_CTRL_SET_PW(channel, fiper_pw);
+		tmr_emask |= TMR_TEVNET_PPEN(channel);
 	} else {
 		fiper = NETC_TMR_DEFAULT_FIPER;
-		tmr_emask &= ~TMR_TEVNET_PPEN(0);
-		fiper_ctrl |= FIPER_CTRL_DIS(0);
+		tmr_emask &= ~TMR_TEVNET_PPEN(channel);
+		fiper_ctrl |= FIPER_CTRL_DIS(channel);
 	}
 
 	netc_timer_wr(priv, NETC_TMR_TEMASK, tmr_emask);
-	netc_timer_wr(priv, NETC_TMR_FIPER(0), fiper);
+	netc_timer_wr(priv, NETC_TMR_FIPER(channel), fiper);
 	netc_timer_wr(priv, NETC_TMR_FIPER_CTRL, fiper_ctrl);
 
 	return 0;
@@ -736,6 +741,26 @@ static void netc_timer_deinit(struct netc_timer *priv)
 	netc_timer_wr(priv, NETC_TMR_FIPER_CTRL, fiper_ctrl);
 }
 
+static int netc_timer_parse_dt(struct netc_timer *priv)
+{
+	struct device_node *node = priv->dev->of_node;
+
+	if (!node || of_property_read_u8(node, "nxp,pps-channel",
+					 &priv->pps_channel))
+		priv->pps_channel = NETC_TMR_DEFAULT_PPS_FIPER;
+
+	if (priv->pps_channel >= NETC_TMR_FIPER_NUM) {
+		dev_err(priv->dev, "pps_channel is %u, greater than %d\n",
+			priv->pps_channel, NETC_TMR_FIPER_NUM);
+
+		return -EINVAL;
+	}
+
+	netc_timer_get_source_clk(priv);
+
+	return 0;
+}
+
 static int netc_timer_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
@@ -791,7 +816,12 @@ static int netc_timer_probe(struct pci_dev *pdev,
 		goto free_irq_vectors;
 	}
 
-	netc_timer_get_source_clk(priv);
+	err = netc_timer_parse_dt(priv);
+	if (err) {
+		dev_err(dev, "Parse DT node failed!\n");
+		goto free_irq;
+	}
+
 	err = clk_prepare_enable(priv->src_clk);
 	if (err) {
 		dev_err(dev, "Enable timer source clock failed!\n");
