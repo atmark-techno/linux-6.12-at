@@ -115,6 +115,8 @@ struct netc_pp {
 	enum netc_pp_type type;
 	bool enabled;
 	int alarm_id;
+	u32 period; /* pulse period, ns */
+	u64 stime; /* start time, ns */
 };
 
 struct netc_timer {
@@ -249,9 +251,9 @@ static int netc_timer_get_alarm_id(struct netc_timer *priv)
 	return i;
 }
 
-static void netc_timer_set_pps_alarm(struct netc_timer *priv)
+static void netc_timer_set_pps_alarm(struct netc_timer *priv, int channel)
 {
-	struct netc_pp *pp = &priv->pp[priv->pps_channel];
+	struct netc_pp *pp = &priv->pp[channel];
 	u64 pps_stime, alarm;
 
 	if (pp->type != NETC_PP_PPS || !pp->enabled)
@@ -266,6 +268,53 @@ static void netc_timer_set_pps_alarm(struct netc_timer *priv)
 	alarm = alarm * priv->period_int;
 
 	netc_timer_alarm_write(priv, alarm, pp->alarm_id);
+}
+
+static void netc_timer_set_perout_alarm(struct netc_timer *priv, int channel)
+{
+	u64 cur_time = netc_timer_cur_time_read(priv);
+	struct netc_pp *pp = &priv->pp[channel];
+	u64 alarm, delta, min_time;
+	u32 period = pp->period;
+	u64 stime = pp->stime;
+
+	min_time = cur_time + 100 * NSEC_PER_MSEC + period;
+	if (stime <= min_time) {
+		delta = min_time - stime;
+		stime += roundup_u64(delta, period);
+	}
+
+	alarm = roundup_u64(stime - period, priv->period_int);
+	netc_timer_alarm_write(priv, alarm, pp->alarm_id);
+}
+
+static void netc_timer_rearm_alarm(struct netc_timer *priv)
+{
+	int i;
+
+	for (i = 0; i < NETC_TMR_FIPER_NUM; i++) {
+		struct netc_pp *pp = &priv->pp[i];
+
+		if (!pp->enabled)
+			continue;
+
+		if (pp->type == NETC_PP_PPS)
+			netc_timer_set_pps_alarm(priv, i);
+		else if (pp->type == NETC_PP_PEROUT)
+			netc_timer_set_perout_alarm(priv, i);
+	}
+}
+
+static u64 netc_timer_get_gclk_period(struct netc_timer *priv)
+{
+	u64 dividend = (u64)NSEC_PER_SEC * priv->oclk_prsc;
+
+	/* TMR_GCLK_freq = (clk_freq / oclk_prsc) Hz.
+	 * TMR_GCLK_period = NSEC_PER_SEC / TMR_GCLK_freq.
+	 * TMR_GCLK_period = (NSEC_PER_SEC * oclk_prsc) / clk_freq
+	 */
+
+	return div_u64(dividend, priv->clk_freq);
 }
 
 static u32 netc_timer_calculate_fiper_pulse_width(struct netc_timer *priv,
@@ -414,7 +463,7 @@ static int netc_timer_adjtime(struct ptp_clock_info *ptp, s64 delta)
 		netc_timer_offset_write(priv, tmr_off);
 	}
 
-	netc_timer_set_pps_alarm(priv);
+	netc_timer_rearm_alarm(priv);
 
 	return 0;
 }
@@ -446,7 +495,7 @@ static int netc_timer_settime64(struct ptp_clock_info *ptp,
 
 	netc_timer_offset_write(priv, 0);
 	netc_timer_cnt_write(priv, ns);
-	netc_timer_set_pps_alarm(priv);
+	netc_timer_rearm_alarm(priv);
 
 	return 0;
 }
@@ -492,7 +541,7 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 		fiper_ctrl |= FIPER_CTRL_SET_PW(channel, fiper_pw);
 		fiper_ctrl |= alarm_id ? FIPER_CTRL_FS_ALARM(channel) : 0;
 		tmr_emask |= TMR_TEVNET_PPEN(channel);
-		netc_timer_set_pps_alarm(priv);
+		netc_timer_set_pps_alarm(priv, channel);
 	} else {
 		if (!pp->enabled)
 			return 0;
@@ -515,9 +564,9 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 static int net_timer_enable_perout(struct netc_timer *priv,
 				   struct ptp_clock_request *rq, int on)
 {
+	u64 alarm, period_ns, gclk_period, max_period, min_period;
 	u32 tmr_emask, fiper, fiper_ctrl;
 	struct timespec64 period, stime;
-	u64 alarm, period_ns, cur_time;
 	u32 channel, fiper_pw;
 	struct netc_pp *pp;
 	int alarm_id;
@@ -549,12 +598,24 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 		fiper = NETC_TMR_DEFAULT_FIPER;
 		fiper_ctrl |= FIPER_CTRL_DIS(channel);
 
-		priv->alarm_bitmap &= ~BIT(pp->alarm_id);
+		alarm_id = pp->alarm_id;
+		netc_timer_alarm_write(priv, alarm, alarm_id);
+		priv->alarm_bitmap &= ~BIT(alarm_id);
 		memset(pp, 0, sizeof(*pp));
 	} else {
 		period.tv_sec = rq->perout.period.sec;
 		period.tv_nsec = rq->perout.period.nsec;
 		period_ns = timespec64_to_ns(&period);
+
+		max_period = (u64)NETC_TMR_DEFAULT_FIPER + priv->period_int;
+		gclk_period = netc_timer_get_gclk_period(priv);
+		min_period = gclk_period * 4 + priv->period_int;
+		if (period_ns > max_period || period_ns < min_period) {
+			dev_err(priv->dev, "The period range is %llu ~ %llu\n",
+				min_period, max_period);
+			return -EINVAL;
+		}
+
 		stime.tv_sec = rq->perout.start.sec;
 		stime.tv_nsec = rq->perout.start.nsec;
 
@@ -563,27 +624,6 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 		/* Set to desired FIPER interval in ns - TCLK_PERIOD */
 		fiper = period_ns - priv->period_int;
 		fiper_pw = netc_timer_calculate_fiper_pulse_width(priv, fiper);
-		if (fiper_pw == 0) {
-			dev_err(priv->dev, "The setting period is too small!\n");
-			return -EINVAL;
-		}
-
-		/* alarm must be an integer multiple of TCLK_PERIOD in order
-		 * to get correct result. In addtion, In FS mode the alarm
-		 * trigger is used as an indication to the fiper start down
-		 * counting. Only TMR_ALARM1 supports this mode.
-		 */
-		alarm = timespec64_to_ns(&stime) - period_ns;
-		cur_time = netc_timer_cur_time_read(priv);
-		if (cur_time >= alarm) {
-			dev_err(priv->dev,
-				"Start time must greater than current time + pulse period\n");
-
-			return -EINVAL;
-		}
-
-		alarm = div_u64(alarm, priv->period_int);
-		alarm = alarm * priv->period_int;
 
 		if (pp->enabled) {
 			alarm_id = pp->alarm_id;
@@ -599,15 +639,19 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 			pp->alarm_id = alarm_id;
 		}
 
+		pp->stime = timespec64_to_ns(&stime);
+		pp->period = period_ns;
+
 		fiper_ctrl &= ~(FIPER_CTRL_DIS(channel) | FIPER_CTRL_PW(channel) |
 				FIPER_CTRL_FS_ALARM(channel));
 		fiper_ctrl |= FIPER_CTRL_SET_PW(channel, fiper_pw);
 		fiper_ctrl |= alarm_id ? FIPER_CTRL_FS_ALARM(channel) : 0;
+
+		netc_timer_set_perout_alarm(priv, channel);
 	}
 
 	netc_timer_wr(priv, NETC_TMR_TEMASK, tmr_emask);
 	netc_timer_wr(priv, NETC_TMR_FIPER(channel), fiper);
-	netc_timer_alarm_write(priv, alarm, alarm_id);
 	netc_timer_wr(priv, NETC_TMR_FIPER_CTRL, fiper_ctrl);
 
 	return 0;
