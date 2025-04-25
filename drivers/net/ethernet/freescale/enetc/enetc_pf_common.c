@@ -1707,10 +1707,16 @@ int enetc_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	int err;
 
 	if (enetc_pf_is_owned_by_mcore(pdev)) {
-		err = pci_sriov_configure_simple(pdev, num_vfs);
+		if (!num_vfs) {
+			pci_disable_sriov(pdev);
+
+			return 0;
+		}
+
+		err = pci_enable_sriov(pdev, num_vfs);
 		if (err < 0)
 			dev_err(&pdev->dev,
-				"pci_sriov_configure_simple err %d\n", err);
+				"pci_enable_sriov err %d\n", err);
 
 		return err;
 	}

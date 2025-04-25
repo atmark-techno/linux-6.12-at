@@ -1578,7 +1578,7 @@ static void enetc4_pf_remove(struct pci_dev *pdev)
 	struct enetc_pf *pf;
 
 	if (enetc_pf_is_owned_by_mcore(pdev)) {
-		pci_sriov_configure_simple(pdev, 0);
+		pci_disable_sriov(pdev);
 		return;
 	}
 
