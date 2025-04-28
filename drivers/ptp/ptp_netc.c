@@ -103,6 +103,11 @@
 #define NETC_TMR_DEFAULT_ETTF_THR	7
 #define NETC_TMR_DEFAULT_PPS_FIPER	0
 
+#define NETC_GLOBAL_OFFSET		0x10000
+#define NETC_GLOBAL_IPBRR0		0xbf8
+#define  IPBRR0_IP_REV			GENMASK(15, 0)
+#define NETC_REV_4_1			0x0401
+
 #define netc_timer_rd(p, o)		netc_read((p)->base + (o))
 #define netc_timer_wr(p, o, v)		netc_write((p)->base + (o), v)
 
@@ -145,6 +150,7 @@ struct netc_timer {
 
 	u8 pps_channel;
 	u8 alarm_bitmap;
+	u8 alarm_num;
 	struct dentry *debugfs_root;
 };
 
@@ -241,7 +247,7 @@ static int netc_timer_get_alarm_id(struct netc_timer *priv)
 {
 	int i;
 
-	for (i = 0; i < NETC_TMR_ALARM_NUM; i++) {
+	for (i = 0; i < priv->alarm_num; i++) {
 		if (!(priv->alarm_bitmap & BIT(i))) {
 			priv->alarm_bitmap |= BIT(i);
 			break;
@@ -525,7 +531,7 @@ static int netc_timer_enable_pps(struct netc_timer *priv,
 			return 0;
 
 		alarm_id = netc_timer_get_alarm_id(priv);
-		if (alarm_id == NETC_TMR_ALARM_NUM) {
+		if (alarm_id == priv->alarm_num) {
 			dev_err(priv->dev, "No available ALARMs\n");
 			return -EBUSY;
 		}
@@ -629,7 +635,7 @@ static int net_timer_enable_perout(struct netc_timer *priv,
 			alarm_id = pp->alarm_id;
 		} else {
 			alarm_id = netc_timer_get_alarm_id(priv);
-			if (alarm_id == NETC_TMR_ALARM_NUM) {
+			if (alarm_id == priv->alarm_num) {
 				dev_err(priv->dev, "No available ALARMs\n");
 				return -EBUSY;
 			}
@@ -798,6 +804,15 @@ int netc_timer_get_phc_index(struct pci_dev *timer_pdev)
 }
 EXPORT_SYMBOL_GPL(netc_timer_get_phc_index);
 
+static int netc_timer_get_global_ip_rev(struct netc_timer *priv)
+{
+	u32 val;
+
+	val = netc_timer_rd(priv, NETC_GLOBAL_OFFSET + NETC_GLOBAL_IPBRR0);
+
+	return val & IPBRR0_IP_REV;
+}
+
 static int netc_timer_init(struct netc_timer *priv)
 {
 	u32 tmr_emask = TMR_TEVENT_ALM1EN | TMR_TEVENT_ALM2EN;
@@ -808,6 +823,10 @@ static int netc_timer_init(struct netc_timer *priv)
 
 	priv->caps = netc_timer_ptp_caps;
 	priv->oclk_prsc = NETC_TMR_DEFAULT_PRSC;
+	priv->alarm_num = NETC_TMR_ALARM_NUM;
+
+	if (netc_timer_get_global_ip_rev(priv) == NETC_REV_4_1)
+		priv->alarm_num = 1;
 
 	spin_lock_init(&priv->lock);
 
