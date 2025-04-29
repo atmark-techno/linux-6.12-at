@@ -859,6 +859,18 @@ static int xpcs_config_2500basex(struct dw_xpcs *xpcs)
 	return xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_MMD_CTRL, ret);
 }
 
+static int xpcs_config_10gbaser(struct dw_xpcs *xpcs)
+{
+	int ret;
+
+	ret = xpcs_modify_changed(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1,
+				  DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW, 0);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 		   const unsigned long *advertising, unsigned int neg_mode)
 {
@@ -877,6 +889,9 @@ int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 
 	switch (compat->an_mode) {
 	case DW_10GBASER:
+		ret = xpcs_config_10gbaser(xpcs);
+		if (ret)
+			return ret;
 		break;
 	case DW_AN_C73:
 		if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED) {
