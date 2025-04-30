@@ -1939,7 +1939,7 @@ err_unregister_queue:
 	return ret;
 }
 
-static int neoisp_init_group(struct neoisp_dev_s *neoispd, struct neoisp_info_s *info, __u32 id)
+static int neoisp_init_group(struct neoisp_dev_s *neoispd, __u32 id)
 {
 	struct neoisp_node_group_s *node_group = &neoispd->node_group[id];
 	struct v4l2_device *v4l2_dev;
@@ -1957,7 +1957,7 @@ static int neoisp_init_group(struct neoisp_dev_s *neoispd, struct neoisp_info_s 
 	/* Register v4l2_device and media_device */
 	mdev = &node_group->mdev;
 	mdev->dev = &neoispd->pdev->dev;
-	mdev->hw_revision = info->neoisp_hw_ver;
+	mdev->hw_revision = neoispd->info->neoisp_hw_ver;
 	strscpy(mdev->model, NEOISP_NAME, sizeof(mdev->model));
 	snprintf(mdev->bus_info, sizeof(mdev->bus_info),
 			"platform:%s", dev_name(&neoispd->pdev->dev));
@@ -2090,7 +2090,6 @@ static int neoisp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct neoisp_dev_s *neoisp_dev;
-	struct neoisp_info_s *info;
 	int num_groups, ret, irq;
 
 	neoisp_dev = devm_kzalloc(dev, sizeof(*neoisp_dev), GFP_KERNEL);
@@ -2098,7 +2097,7 @@ static int neoisp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	neoisp_dev->pdev = pdev;
 	platform_set_drvdata(pdev, neoisp_dev);
-	info = (struct neoisp_info_s *)of_device_get_match_data(dev);
+	neoisp_dev->info = (struct neoisp_info_s *)of_device_get_match_data(dev);
 
 	ret = devm_clk_bulk_get_all(dev, &neoisp_dev->clks);
 	if (ret < 0) {
@@ -2159,7 +2158,7 @@ static int neoisp_probe(struct platform_device *pdev)
 	 * device
 	 */
 	for (num_groups = 0; num_groups < NEOISP_NODE_GROUPS_COUNT; num_groups++) {
-		ret = neoisp_init_group(neoisp_dev, info, num_groups);
+		ret = neoisp_init_group(neoisp_dev, num_groups);
 		if (ret)
 			goto disable_nodes_err;
 	}
