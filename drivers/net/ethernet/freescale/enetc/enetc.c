@@ -2028,15 +2028,6 @@ static void enetc_xdp_drop(struct enetc_bdr *rx_ring, int rx_ring_first,
 	}
 }
 
-static int enetc_xdp_num_bd(struct enetc_bdr *rx_ring, int rx_ring_first,
-			    int rx_ring_last)
-{
-	if (rx_ring_first <= rx_ring_last)
-		return rx_ring_last - rx_ring_first;
-
-	return rx_ring->bd_count - rx_ring_first + rx_ring_last;
-}
-
 static void enetc_bulk_flip_buff(struct enetc_bdr *rx_ring, int rx_ring_first,
 				 int rx_ring_last)
 {
@@ -2133,9 +2124,7 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 		case XDP_TX:
 			tx_ring = priv->xdp_tx_ring[rx_ring->index];
 			enetc_tx_queue_lock(tx_ring, cpu);
-			if (unlikely(test_bit(ENETC_TX_DOWN, &priv->flags) ||
-				     enetc_xdp_num_bd(rx_ring, orig_i, i) >
-				     max_txbd_num)) {
+			if (unlikely(test_bit(ENETC_TX_DOWN, &priv->flags))) {
 				enetc_xdp_drop(rx_ring, orig_i, i);
 				tx_ring->stats.xdp_tx_drops++;
 				enetc_tx_queue_unlock(tx_ring);
