@@ -598,6 +598,8 @@ static int imx_rpmsg_pcm_new(struct snd_soc_component *component,
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct fsl_rpmsg *rpmsg = dev_get_drvdata(cpu_dai->dev);
 	struct snd_pcm_substream *substream;
+	struct rpmsg_info *info = dev_get_drvdata(component->dev);
+	struct rpmsg_msg *msg;
 	int ret;
 
 	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
@@ -618,6 +620,10 @@ static int imx_rpmsg_pcm_new(struct snd_soc_component *component,
 		if (ret < 0)
 			return ret;
 	}
+
+	msg = &info->msg[PCM_INIT];
+	msg->s_msg.header.cmd = PCM_INIT;
+	info->send_message(msg, info);
 
 	return ret;
 }
