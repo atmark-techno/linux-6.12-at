@@ -124,6 +124,13 @@
 #define LPSPI3			3
 
 /**************************
+ * SAI
+ *************************/
+/* sai: sai_index */
+#define SAI0			0
+#define SAI1			1
+
+/**************************
  * flexio
  * For drivers that support it
  *************************/
