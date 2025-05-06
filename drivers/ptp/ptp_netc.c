@@ -294,8 +294,9 @@ static void netc_timer_set_perout_alarm(struct netc_timer *priv, int channel)
 	netc_timer_alarm_write(priv, alarm, pp->alarm_id);
 }
 
-static void netc_timer_rearm_alarm(struct netc_timer *priv)
+static void netc_timer_disable_fiper(struct netc_timer *priv)
 {
+	u32 fiper_ctrl = netc_timer_rd(priv, NETC_TMR_FIPER_CTRL);
 	int i;
 
 	for (i = 0; i < NETC_TMR_FIPER_NUM; i++) {
@@ -304,11 +305,32 @@ static void netc_timer_rearm_alarm(struct netc_timer *priv)
 		if (!pp->enabled)
 			continue;
 
+		fiper_ctrl |= FIPER_CTRL_DIS(i);
+	}
+
+	netc_timer_wr(priv, NETC_TMR_FIPER_CTRL, fiper_ctrl);
+}
+
+static void netc_timer_enable_fiper(struct netc_timer *priv)
+{
+	u32 fiper_ctrl = netc_timer_rd(priv, NETC_TMR_FIPER_CTRL);
+	int i;
+
+	for (i = 0; i < NETC_TMR_FIPER_NUM; i++) {
+		struct netc_pp *pp = &priv->pp[i];
+
+		if (!pp->enabled)
+			continue;
+
+		fiper_ctrl &= ~FIPER_CTRL_DIS(i);
+
 		if (pp->type == NETC_PP_PPS)
 			netc_timer_set_pps_alarm(priv, i);
 		else if (pp->type == NETC_PP_PEROUT)
 			netc_timer_set_perout_alarm(priv, i);
 	}
+
+	netc_timer_wr(priv, NETC_TMR_FIPER_CTRL, fiper_ctrl);
 }
 
 static u64 netc_timer_get_gclk_period(struct netc_timer *priv)
@@ -455,6 +477,8 @@ static int netc_timer_adjtime(struct ptp_clock_info *ptp, s64 delta)
 
 	guard(spinlock_irqsave)(&priv->lock);
 
+	netc_timer_disable_fiper(priv);
+
 	tmr_off = netc_timer_offset_read(priv);
 	if (delta < 0 && tmr_off < abs(delta)) {
 		delta += tmr_off;
@@ -469,7 +493,7 @@ static int netc_timer_adjtime(struct ptp_clock_info *ptp, s64 delta)
 		netc_timer_offset_write(priv, tmr_off);
 	}
 
-	netc_timer_rearm_alarm(priv);
+	netc_timer_enable_fiper(priv);
 
 	return 0;
 }
@@ -499,9 +523,10 @@ static int netc_timer_settime64(struct ptp_clock_info *ptp,
 
 	guard(spinlock_irqsave)(&priv->lock);
 
+	netc_timer_disable_fiper(priv);
 	netc_timer_offset_write(priv, 0);
 	netc_timer_cnt_write(priv, ns);
-	netc_timer_rearm_alarm(priv);
+	netc_timer_enable_fiper(priv);
 
 	return 0;
 }
