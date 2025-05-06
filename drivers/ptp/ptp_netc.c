@@ -260,18 +260,15 @@ static int netc_timer_get_alarm_id(struct netc_timer *priv)
 static void netc_timer_set_pps_alarm(struct netc_timer *priv, int channel)
 {
 	struct netc_pp *pp = &priv->pp[channel];
-	u64 pps_stime, alarm;
+	u64 alarm;
 
 	if (pp->type != NETC_PP_PPS || !pp->enabled)
 		return;
 
-	/* Get expected PPS trigger time */
-	pps_stime = netc_timer_cur_time_read(priv);
-	pps_stime += 1500000000ULL;
-	pps_stime = div_u64(pps_stime, 1000000000UL) * 1000000000ULL;
-
-	alarm = div_u64(pps_stime, priv->period_int);
-	alarm = alarm * priv->period_int;
+	/* Get the alarm value */
+	alarm = netc_timer_cur_time_read(priv) +  NSEC_PER_MSEC;
+	alarm = roundup_u64(alarm, NSEC_PER_SEC);
+	alarm = roundup_u64(alarm, priv->period_int);
 
 	netc_timer_alarm_write(priv, alarm, pp->alarm_id);
 }
@@ -284,8 +281,8 @@ static void netc_timer_set_perout_alarm(struct netc_timer *priv, int channel)
 	u32 period = pp->period;
 	u64 stime = pp->stime;
 
-	min_time = cur_time + 100 * NSEC_PER_MSEC + period;
-	if (stime <= min_time) {
+	min_time = cur_time + NSEC_PER_MSEC + period;
+	if (stime < min_time) {
 		delta = min_time - stime;
 		stime += roundup_u64(delta, period);
 	}
