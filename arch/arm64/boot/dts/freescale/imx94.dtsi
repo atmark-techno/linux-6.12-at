@@ -722,7 +722,7 @@
 			compatible = "fsl,aips-bus", "simple-bus";
 			reg = <0 0x42800000 0 0x800000>;
 			ranges = <0x42800000 0x0 0x42800000 0x800000>,
-				 <0x28000000 0x0 0x28000000 0x1000000>;
+				 <0x24000000 0x0 0x24000000 0xC000000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
