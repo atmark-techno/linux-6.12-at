@@ -261,6 +261,7 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-ap1302-dual.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-8mic-revE.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-boe-wuxga-lvds0-panel.dtb imx8mp-frdm-boe-wuxga-lvds1-panel.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-os08a20.dtb imx8mp-frdm-os08a20-dual.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-rpmsg.dtb
 
 imx8mp-frdm-waveshare-7inch-c-panel-dtbs := imx8mp-frdm.dtb imx8mp-frdm-waveshare-7inch-c-panel.dtbo
 dtb-${CONFIG_ARCH_MXC} += imx8mp-frdm-waveshare-7inch-c-panel.dtb
