@@ -624,6 +624,7 @@ static int imx_rpmsg_pcm_new(struct snd_soc_component *component,
 	msg = &info->msg[PCM_INIT];
 	msg->s_msg.header.cmd = PCM_INIT;
 	info->send_message(msg, info);
+	info->initialized = true;
 
 	return ret;
 }
@@ -804,6 +805,9 @@ static int imx_rpmsg_pcm_suspend(struct device *dev)
 	struct rpmsg_msg *rpmsg_tx;
 	struct rpmsg_msg *rpmsg_rx;
 
+	if (!info->initialized)
+		return 0;
+
 	rpmsg_tx = &info->msg[TX_SUSPEND];
 	rpmsg_rx = &info->msg[RX_SUSPEND];
 
@@ -821,6 +825,9 @@ static int imx_rpmsg_pcm_resume(struct device *dev)
 	struct rpmsg_info *info = dev_get_drvdata(dev);
 	struct rpmsg_msg *rpmsg_tx;
 	struct rpmsg_msg *rpmsg_rx;
+
+	if (!info->initialized)
+		return 0;
 
 	rpmsg_tx = &info->msg[TX_RESUME];
 	rpmsg_rx = &info->msg[RX_RESUME];
