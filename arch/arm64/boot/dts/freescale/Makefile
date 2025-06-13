@@ -497,6 +497,9 @@ dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk.dtb \
 dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-frdm.dtb imx93-11x11-frdm-8mic-reve.dtb \
 			  imx93-11x11-frdm-aud-hat.dtb imx93-11x11-frdm-ld.dtb
 
+imx93-11x11-frdm-ov5640-dtbs := imx93-11x11-frdm.dtb imx93-11x11-frdm-ov5640.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-frdm-ov5640.dtb
+
 imx93-11x11-frdm-waveshare-7inch-c-panel-dtbs := imx93-11x11-frdm.dtb imx93-11x11-frdm-waveshare-7inch-c-panel.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-frdm-waveshare-7inch-c-panel.dtb
 
