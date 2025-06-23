@@ -1616,8 +1616,6 @@ static int netc_port_enable(struct dsa_switch *ds, int port_id,
 		goto del_unaware_vlan_entry;
 	}
 
-	netc_port_wr(port, NETC_POR, 0);
-
 	return 0;
 
 del_unaware_vlan_entry:
@@ -1636,7 +1634,6 @@ static void netc_port_disable(struct dsa_switch *ds, int port_id)
 {
 	struct netc_port *port = NETC_PORT(NETC_PRIV(ds), port_id);
 
-	netc_port_wr(port, NETC_POR, PCR_TXDIS | PCR_RXDIS);
 	clk_disable_unprepare(port->ref_clk);
 
 	if (dsa_is_cpu_port(ds, port_id)) {
@@ -2368,8 +2365,10 @@ static void netc_port_set_rx_pause(struct netc_port *port, bool rx_pause)
 static void netc_port_enable_mac_path(struct netc_port *port,
 				      bool enable)
 {
+	u32 por = enable ? 0 : (PCR_TXDIS | PCR_RXDIS);
 	u32 val;
 
+	netc_port_wr(port, NETC_POR, por);
 	val = netc_mac_port_rd(port, NETC_PM_CMD_CFG(0));
 	if (enable)
 		val |= PM_CMD_CFG_TX_EN | PM_CMD_CFG_RX_EN;
