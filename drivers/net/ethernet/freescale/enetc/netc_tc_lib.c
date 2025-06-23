@@ -593,7 +593,8 @@ delete_sgit_entry:
 		netc_delete_sgit_entry(priv, sgit_entry->entry_id);
 
 delete_isct_entry:
-	ntmp_isct_operate_entry(cbdrs, ist_entry->entry_id, NTMP_CMD_DELETE, NULL);
+	ntmp_isct_operate_entry(cbdrs, isct_entry->entry_id,
+				NTMP_CMD_DELETE, NULL);
 
 	return err;
 }
