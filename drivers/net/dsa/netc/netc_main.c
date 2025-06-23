@@ -1126,7 +1126,8 @@ static int netc_switch_add_vlan_egress_rule(struct netc_switch *priv,
 					    struct netc_vlan_entry *entry)
 {
 	struct netc_cbdrs *cbdrs = &priv->ntmp.cbdrs;
-	struct ett_cfge_data ett_cfge = {0};
+	struct ett_cfge_data ett_cfge = {};
+	u32 ect_eid = NTMP_NULL_ENTRY_ID;
 	u32 ett_base_eid, ect_base_eid;
 	u32 ett_eid, vuda_sqta;
 	u16 efm_cfg;
@@ -1138,10 +1139,13 @@ static int netc_switch_add_vlan_egress_rule(struct netc_switch *priv,
 	if (ect_base_eid == NTMP_NULL_ENTRY_ID) {
 		dev_warn(priv->dev, "No ECT entries available\n");
 	} else {
-		ect_base_eid *= priv->num_ports;
-		for (i = 0; i < priv->num_ports; i++)
+		ect_eid = ect_base_eid * priv->num_ports;
+		for (i = 0; i < priv->num_ports; i++, ect_eid++)
 			/* Reset the counters of ECT entry */
-			ntmp_ect_update_entry(cbdrs, ect_base_eid + i);
+			ntmp_ect_update_entry(cbdrs, ect_eid);
+
+		/* Restore ect_eid to the first index */
+		ect_eid = ect_base_eid * priv->num_ports;
 	}
 
 	/* step2: find available ett entries and add these entries */
@@ -1153,17 +1157,17 @@ static int netc_switch_add_vlan_egress_rule(struct netc_switch *priv,
 		goto clear_ect_eid;
 	}
 
-	ett_base_eid *=  priv->num_ports;
-	ett_eid = ett_base_eid;
+	ett_eid = ett_base_eid * priv->num_ports;
 	for (i = 0; i < priv->num_ports; i++, ett_eid++) {
 		/* Specify the FMT entry ID format */
 		vuda_sqta = FMTEID_VUDA_SQTA;
 		efm_cfg = 0;
 
-		if (ect_base_eid != NTMP_NULL_ENTRY_ID) {
+		if (ect_eid != NTMP_NULL_ENTRY_ID) {
 			/* Increase egress frame counter */
 			efm_cfg |= FIELD_PREP(ETT_ECA, ETT_ECA_INC);
-			ett_cfge.ec_eid = cpu_to_le32(ett_eid);
+			ett_cfge.ec_eid = cpu_to_le32(ect_eid);
+			ect_eid++;
 		}
 
 		/* If egress rule is VLAN untagged */
@@ -1186,7 +1190,8 @@ static int netc_switch_add_vlan_egress_rule(struct netc_switch *priv,
 			goto clear_ett_entries;
 	}
 
-	entry->cfge.et_eid = cpu_to_le32(ett_base_eid);
+	ett_eid = ett_base_eid * priv->num_ports;
+	entry->cfge.et_eid = cpu_to_le32(ett_eid);
 	entry->ect_base_eid = ect_base_eid;
 
 	return 0;
@@ -1198,7 +1203,8 @@ clear_ett_entries:
 
 clear_ect_eid:
 	/* ECT is a static index table, no need to delete the entries */
-	ntmp_clear_eid_bitmap(priv->ntmp.ect_eid_bitmap, ect_base_eid);
+	if (ect_base_eid != NTMP_NULL_ENTRY_ID)
+		ntmp_clear_eid_bitmap(priv->ntmp.ect_eid_bitmap, ect_base_eid);
 
 	return err;
 }
@@ -1206,8 +1212,7 @@ clear_ect_eid:
 static void netc_switch_delete_vlan_egress_rule(struct netc_switch *priv,
 						struct netc_vlan_entry *entry)
 {
-	u32 ett_eid_bit, ect_eid_bit;
-	u32 ett_eid, ect_eid;
+	u32 ett_eid, ett_eid_bit;
 	int i;
 
 	ett_eid = le32_to_cpu(entry->cfge.et_eid);
@@ -1216,19 +1221,15 @@ static void netc_switch_delete_vlan_egress_rule(struct netc_switch *priv,
 
 	ett_eid_bit = ett_eid / priv->num_ports;
 	ntmp_clear_eid_bitmap(priv->ntmp.ett_eid_bitmap, ett_eid_bit);
-	for (i = 0; i < priv->num_ports; i++) {
-		ett_eid += i;
+	for (i = 0; i < priv->num_ports; i++, ett_eid++)
 		ntmp_ett_delete_entry(&priv->ntmp.cbdrs, ett_eid);
-	}
 
 	entry->cfge.et_eid = cpu_to_le32(NTMP_NULL_ENTRY_ID);
 
-	ect_eid = entry->ect_base_eid;
-	if (ect_eid == NTMP_NULL_ENTRY_ID)
+	if (entry->ect_base_eid == NTMP_NULL_ENTRY_ID)
 		return;
 
-	ect_eid_bit = ect_eid / priv->num_ports;
-	ntmp_clear_eid_bitmap(priv->ntmp.ect_eid_bitmap, ect_eid_bit);
+	ntmp_clear_eid_bitmap(priv->ntmp.ect_eid_bitmap, entry->ect_base_eid);
 	entry->ect_base_eid = NTMP_NULL_ENTRY_ID;
 }
 
@@ -1237,7 +1238,7 @@ static int netc_port_update_vlan_egress_rule(struct netc_port *port,
 {
 	struct netc_switch *priv = port->switch_priv;
 	struct netc_cbdrs *cbdrs = &priv->ntmp.cbdrs;
-	struct ett_cfge_data ett_cfge = {0};
+	struct ett_cfge_data ett_cfge = {};
 	u32 ett_eid, ect_eid, vuda_sqta;
 	u16 efm_cfg = 0;
 
@@ -1246,8 +1247,8 @@ static int netc_port_update_vlan_egress_rule(struct netc_port *port,
 		return 0;
 
 	ett_eid += port->index;
-	ect_eid = entry->ect_base_eid;
-	if (ect_eid != NTMP_NULL_ENTRY_ID) {
+	if (entry->ect_base_eid != NTMP_NULL_ENTRY_ID) {
+		ect_eid = entry->ect_base_eid * priv->num_ports;
 		ect_eid += port->index;
 		ntmp_ect_update_entry(cbdrs, ect_eid);
 
