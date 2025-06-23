@@ -1570,20 +1570,6 @@ static struct net_device *netc_port_get_net_device(struct netc_port *port)
 		return port->dp->user;
 }
 
-static void netc_port_set_mac_address(struct netc_port *port)
-{
-	struct net_device *ndev;
-	u32 upper;
-	u16 lower;
-
-	ndev = netc_port_get_net_device(port);
-	lower = get_unaligned_le16(ndev->dev_addr + 4);
-	upper = get_unaligned_le32(ndev->dev_addr);
-
-	netc_port_wr(port, NETC_PMAR0, upper);
-	netc_port_wr(port, NETC_PMAR1, lower);
-}
-
 static int netc_port_enable(struct dsa_switch *ds, int port_id,
 			    struct phy_device *phy)
 {
@@ -1630,7 +1616,6 @@ static int netc_port_enable(struct dsa_switch *ds, int port_id,
 		goto del_unaware_vlan_entry;
 	}
 
-	netc_port_set_mac_address(port);
 	netc_port_wr(port, NETC_POR, 0);
 
 	return 0;
