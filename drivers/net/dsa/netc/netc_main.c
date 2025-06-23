@@ -29,18 +29,6 @@ static struct netc_fdb_entry *netc_lookup_fdb_entry(struct netc_switch *priv,
 	return NULL;
 }
 
-static inline void netc_add_fdb_entry(struct netc_switch *priv,
-				      struct netc_fdb_entry *entry)
-{
-	hlist_add_head(&entry->node, &priv->fdb_list);
-}
-
-static inline void netc_del_fdb_entry(struct netc_fdb_entry *entry)
-{
-	hlist_del(&entry->node);
-	kfree(entry);
-}
-
 static void netc_destroy_fdb_list(struct netc_switch *priv)
 {
 	struct netc_fdb_entry *entry;
@@ -61,18 +49,6 @@ static struct netc_vlan_entry *netc_lookup_vlan_entry(struct netc_switch *priv,
 			return entry;
 
 	return NULL;
-}
-
-static inline void netc_add_vlan_entry(struct netc_switch *priv,
-				       struct netc_vlan_entry *entry)
-{
-	hlist_add_head(&entry->node, &priv->vlan_list);
-}
-
-static inline void netc_del_vlan_entry(struct netc_vlan_entry *entry)
-{
-	hlist_del(&entry->node);
-	kfree(entry);
 }
 
 static void netc_destroy_vlan_list(struct netc_switch *priv)
