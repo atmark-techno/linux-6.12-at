@@ -512,7 +512,7 @@ delete_ist_entry:
 		ntmp_ist_delete_entry(cbdrs, ist_entry->entry_id);
 delete_isct_entry:
 	if (isct_entry)
-		ntmp_isct_operate_entry(cbdrs, ist_entry->entry_id,
+		ntmp_isct_operate_entry(cbdrs, isct_entry->entry_id,
 					NTMP_CMD_DELETE, NULL);
 delete_rpt_entry:
 	if (rpt_entry)
