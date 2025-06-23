@@ -261,6 +261,7 @@ static int netc_port_create_internal_mdiobus(struct netc_port *port)
 	bus->read_c45 = enetc_mdio_read_c45;
 	bus->write_c45 = enetc_mdio_write_c45;
 	bus->parent = dev;
+	bus->phy_mask = ~0;
 	mdio_priv = bus->priv;
 	mdio_priv->hw = hw;
 	mdio_priv->mdio_base = NETC_IMDIO_BASE;
