@@ -1032,7 +1032,6 @@ void netc_delete_psfp_flower_rule(struct ntmp_priv *priv,
 
 	if (gate_tbl && refcount_dec_and_test(&gate_tbl->refcount)) {
 		netc_delete_sgit_entry(priv, gate_tbl->sgit_eid);
-		ntmp_clear_eid_bitmap(priv->sgit_eid_bitmap, gate_tbl->sgit_eid);
 		kfree(gate_tbl);
 	}
 
