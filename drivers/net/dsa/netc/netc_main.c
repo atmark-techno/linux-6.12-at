@@ -1181,7 +1181,6 @@ static int netc_switch_add_vlan_egress_rule(struct netc_switch *priv,
 		}
 
 		ett_cfge.efm_eid = cpu_to_le32(vuda_sqta);
-		ett_cfge.esqa_tgt_eid = cpu_to_le32(NTMP_NULL_ENTRY_ID);
 		ett_cfge.efm_cfg = cpu_to_le16(efm_cfg);
 
 		/* Add an ETT entry */
@@ -1268,7 +1267,6 @@ static int netc_port_update_vlan_egress_rule(struct netc_port *port,
 
 	ett_cfge.efm_cfg = cpu_to_le16(efm_cfg);
 	ett_cfge.efm_eid = cpu_to_le32(vuda_sqta);
-	ett_cfge.esqa_tgt_eid = cpu_to_le32(NTMP_NULL_ENTRY_ID);
 
 	/* Add an ETT entry */
 	return ntmp_ett_add_or_update_entry(cbdrs, ett_eid, false, &ett_cfge);
