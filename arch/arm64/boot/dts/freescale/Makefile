@@ -924,6 +924,9 @@ dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-frdm.dtb imx95-15x15-frdm-boe-wxga-lvds-pa
 imx95-15x15-frdm-waveshare-7inch-c-panel-dtbs := imx95-15x15-frdm.dtb imx95-15x15-frdm-waveshare-7inch-c-panel.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-frdm-waveshare-7inch-c-panel.dtb
 
+imx95-15x15-frdm-ap1302-dtbs := imx95-15x15-frdm.dtb imx95-15x15-frdm-ap1302.dtbo
+dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-frdm-ap1302.dtb
+
 dtb-$(CONFIG_ARCH_S32) += s32g274a-evb.dtb
 dtb-$(CONFIG_ARCH_S32) += s32g274a-rdb2.dtb
 dtb-$(CONFIG_ARCH_S32) += s32g399a-rdb3.dtb
