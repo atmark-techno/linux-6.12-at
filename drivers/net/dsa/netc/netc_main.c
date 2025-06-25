@@ -529,19 +529,19 @@ static int netc_init_ntmp_bitmaps(struct netc_switch *priv)
 	struct ntmp_priv *ntmp = &priv->ntmp;
 
 	ntmp->ett_bitmap_size = ntmp->caps.ett_num_entries / priv->num_ports;
-	ntmp->ett_eid_bitmap = bitmap_zalloc(ntmp->ett_bitmap_size, GFP_KERNEL);
-	if (!ntmp->ett_eid_bitmap)
+	ntmp->ett_gid_bitmap = bitmap_zalloc(ntmp->ett_bitmap_size, GFP_KERNEL);
+	if (!ntmp->ett_gid_bitmap)
 		return -ENOMEM;
 
 	ntmp->ect_bitmap_size = ntmp->caps.ect_num_entries / priv->num_ports;
-	ntmp->ect_eid_bitmap = bitmap_zalloc(ntmp->ect_bitmap_size, GFP_KERNEL);
-	if (!ntmp->ect_eid_bitmap)
-		goto free_ett_eid_bitmap;
+	ntmp->ect_gid_bitmap = bitmap_zalloc(ntmp->ect_bitmap_size, GFP_KERNEL);
+	if (!ntmp->ect_gid_bitmap)
+		goto free_ett_gid_bitmap;
 
 	ntmp->ist_eid_bitmap = bitmap_zalloc(ntmp->caps.ist_num_entries,
 					     GFP_KERNEL);
 	if (!ntmp->ist_eid_bitmap)
-		goto free_ect_eid_bitmap;
+		goto free_ect_gid_bitmap;
 
 	ntmp->rpt_eid_bitmap = bitmap_zalloc(ntmp->caps.rpt_num_entries,
 					     GFP_KERNEL);
@@ -577,12 +577,12 @@ free_rpt_eid_bitmap:
 free_ist_eid_bitmap:
 	bitmap_free(ntmp->ist_eid_bitmap);
 	ntmp->ist_eid_bitmap = NULL;
-free_ect_eid_bitmap:
-	bitmap_free(ntmp->ect_eid_bitmap);
-	ntmp->ect_eid_bitmap = NULL;
-free_ett_eid_bitmap:
-	bitmap_free(ntmp->ett_eid_bitmap);
-	ntmp->ett_eid_bitmap = NULL;
+free_ect_gid_bitmap:
+	bitmap_free(ntmp->ect_gid_bitmap);
+	ntmp->ect_gid_bitmap = NULL;
+free_ett_gid_bitmap:
+	bitmap_free(ntmp->ett_gid_bitmap);
+	ntmp->ett_gid_bitmap = NULL;
 
 	return -ENOMEM;
 }
@@ -606,11 +606,11 @@ static void netc_free_ntmp_bitmaps(struct netc_switch *priv)
 	bitmap_free(ntmp->ist_eid_bitmap);
 	ntmp->ist_eid_bitmap = NULL;
 
-	bitmap_free(ntmp->ect_eid_bitmap);
-	ntmp->ect_eid_bitmap = NULL;
+	bitmap_free(ntmp->ect_gid_bitmap);
+	ntmp->ect_gid_bitmap = NULL;
 
-	bitmap_free(ntmp->ett_eid_bitmap);
-	ntmp->ett_eid_bitmap = NULL;
+	bitmap_free(ntmp->ett_gid_bitmap);
+	ntmp->ett_gid_bitmap = NULL;
 }
 
 struct pci_dev *netc_switch_get_timer(struct netc_switch *priv)
@@ -1128,36 +1128,36 @@ static int netc_switch_add_vlan_egress_rule(struct netc_switch *priv,
 	struct netc_cbdrs *cbdrs = &priv->ntmp.cbdrs;
 	struct ett_cfge_data ett_cfge = {};
 	u32 ect_eid = NTMP_NULL_ENTRY_ID;
-	u32 ett_base_eid, ect_base_eid;
 	u32 ett_eid, vuda_sqta;
+	u32 ett_gid, ect_gid;
 	u16 efm_cfg;
 	int i, err;
 
 	/* step1: find available ect entries and update these entries */
-	ect_base_eid = ntmp_lookup_free_eid(priv->ntmp.ect_eid_bitmap,
-					    priv->ntmp.ect_bitmap_size);
-	if (ect_base_eid == NTMP_NULL_ENTRY_ID) {
+	ect_gid = ntmp_lookup_free_eid(priv->ntmp.ect_gid_bitmap,
+				       priv->ntmp.ect_bitmap_size);
+	if (ect_gid == NTMP_NULL_ENTRY_ID) {
 		dev_warn(priv->dev, "No ECT entries available\n");
 	} else {
-		ect_eid = ect_base_eid * priv->num_ports;
+		ect_eid = ect_gid * priv->num_ports;
 		for (i = 0; i < priv->num_ports; i++, ect_eid++)
 			/* Reset the counters of ECT entry */
 			ntmp_ect_update_entry(cbdrs, ect_eid);
 
 		/* Restore ect_eid to the first index */
-		ect_eid = ect_base_eid * priv->num_ports;
+		ect_eid = ect_gid * priv->num_ports;
 	}
 
 	/* step2: find available ett entries and add these entries */
-	ett_base_eid = ntmp_lookup_free_eid(priv->ntmp.ett_eid_bitmap,
-					    priv->ntmp.ett_bitmap_size);
-	if (ett_base_eid == NTMP_NULL_ENTRY_ID) {
+	ett_gid = ntmp_lookup_free_eid(priv->ntmp.ett_gid_bitmap,
+				       priv->ntmp.ett_bitmap_size);
+	if (ett_gid == NTMP_NULL_ENTRY_ID) {
 		dev_err(priv->dev, "No free ETT entries found\n");
 		err = -ENOSPC;
 		goto clear_ect_eid;
 	}
 
-	ett_eid = ett_base_eid * priv->num_ports;
+	ett_eid = ett_gid * priv->num_ports;
 	for (i = 0; i < priv->num_ports; i++, ett_eid++) {
 		/* Specify the FMT entry ID format */
 		vuda_sqta = FMTEID_VUDA_SQTA;
@@ -1190,21 +1190,21 @@ static int netc_switch_add_vlan_egress_rule(struct netc_switch *priv,
 			goto clear_ett_entries;
 	}
 
-	ett_eid = ett_base_eid * priv->num_ports;
+	ett_eid = ett_gid * priv->num_ports;
 	entry->cfge.et_eid = cpu_to_le32(ett_eid);
-	entry->ect_base_eid = ect_base_eid;
+	entry->ect_gid = ect_gid;
 
 	return 0;
 
 clear_ett_entries:
-	ntmp_clear_eid_bitmap(priv->ntmp.ett_eid_bitmap, ett_base_eid);
+	ntmp_clear_eid_bitmap(priv->ntmp.ett_gid_bitmap, ett_gid);
 	for (i--, ett_eid--; i >= 0; i--, ett_eid--)
 		ntmp_ett_delete_entry(cbdrs, ett_eid);
 
 clear_ect_eid:
 	/* ECT is a static index table, no need to delete the entries */
-	if (ect_base_eid != NTMP_NULL_ENTRY_ID)
-		ntmp_clear_eid_bitmap(priv->ntmp.ect_eid_bitmap, ect_base_eid);
+	if (ect_gid != NTMP_NULL_ENTRY_ID)
+		ntmp_clear_eid_bitmap(priv->ntmp.ect_gid_bitmap, ect_gid);
 
 	return err;
 }
@@ -1220,17 +1220,17 @@ static void netc_switch_delete_vlan_egress_rule(struct netc_switch *priv,
 		return;
 
 	ett_eid_bit = ett_eid / priv->num_ports;
-	ntmp_clear_eid_bitmap(priv->ntmp.ett_eid_bitmap, ett_eid_bit);
+	ntmp_clear_eid_bitmap(priv->ntmp.ett_gid_bitmap, ett_eid_bit);
 	for (i = 0; i < priv->num_ports; i++, ett_eid++)
 		ntmp_ett_delete_entry(&priv->ntmp.cbdrs, ett_eid);
 
 	entry->cfge.et_eid = cpu_to_le32(NTMP_NULL_ENTRY_ID);
 
-	if (entry->ect_base_eid == NTMP_NULL_ENTRY_ID)
+	if (entry->ect_gid == NTMP_NULL_ENTRY_ID)
 		return;
 
-	ntmp_clear_eid_bitmap(priv->ntmp.ect_eid_bitmap, entry->ect_base_eid);
-	entry->ect_base_eid = NTMP_NULL_ENTRY_ID;
+	ntmp_clear_eid_bitmap(priv->ntmp.ect_gid_bitmap, entry->ect_gid);
+	entry->ect_gid = NTMP_NULL_ENTRY_ID;
 }
 
 static int netc_port_update_vlan_egress_rule(struct netc_port *port,
@@ -1247,8 +1247,8 @@ static int netc_port_update_vlan_egress_rule(struct netc_port *port,
 		return 0;
 
 	ett_eid += port->index;
-	if (entry->ect_base_eid != NTMP_NULL_ENTRY_ID) {
-		ect_eid = entry->ect_base_eid * priv->num_ports;
+	if (entry->ect_gid != NTMP_NULL_ENTRY_ID) {
+		ect_eid = entry->ect_gid * priv->num_ports;
 		ect_eid += port->index;
 		ntmp_ect_update_entry(cbdrs, ect_eid);
 
@@ -1288,7 +1288,7 @@ static int netc_port_add_vlan_entry(struct netc_port *port, u16 vid,
 		return -ENOMEM;
 
 	entry->vid = vid;
-	entry->ect_base_eid = NTMP_NULL_ENTRY_ID;
+	entry->ect_gid = NTMP_NULL_ENTRY_ID;
 	entry->cfge.et_eid = cpu_to_le32(NTMP_NULL_ENTRY_ID);
 	bitmap_stg = BIT(port->index) | VFT_STG_ID(0);
 	entry->cfge.bitmap_stg = cpu_to_le32(bitmap_stg);

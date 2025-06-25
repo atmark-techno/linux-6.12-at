@@ -216,7 +216,7 @@ struct netc_fdb_entry {
 struct netc_vlan_entry {
 	u16 vid;
 	u32 entry_id;
-	u32 ect_base_eid;
+	u32 ect_gid;
 	u32 untagged_port_bitmap;
 	struct vft_cfge_data cfge;
 	struct hlist_node node;
