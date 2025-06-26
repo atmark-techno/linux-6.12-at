@@ -56,7 +56,7 @@ netc_find_flower_rule_by_key(struct ntmp_priv *priv,
 			     enum netc_key_tbl_type tbl_type,
 			     void *key)
 {
-	static struct netc_flower_key_tbl *key_tbl;
+	struct netc_flower_key_tbl *key_tbl;
 	struct netc_flower_rule *rule;
 
 	hlist_for_each_entry(rule, &priv->flower_list, node) {
