@@ -520,7 +520,8 @@ dtb-$(CONFIG_ARCH_MXC) += imx91-11x11-evk.dtb \
 
 dtb-$(CONFIG_ARCH_MXC) += imx91-11x11-frdm-imx91s.dtb \
 			  imx91-11x11-frdm-imx91s-aud-hat.dtb \
-			  imx91-11x11-frdm-imx91s-8mic-revE.dtb
+			  imx91-11x11-frdm-imx91s-8mic-revE.dtb \
+			  imx91-11x11-frdm-imx91s-ld.dtb
 
 imx93-11x11-evk-pmic-pf0900-dtbs := imx93-11x11-evk.dtb imx93-11x11-evk-pmic-pf0900.dtbo
 imx93-11x11-evk-pmic-pf0900-root-dtbs := imx93-11x11-evk-root.dtb imx93-11x11-evk-pmic-pf0900.dtbo
