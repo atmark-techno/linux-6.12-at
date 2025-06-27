@@ -824,6 +824,11 @@ static u16 enetc_msg_pf_add_vf_mac_entries(struct enetc_pf *pf, int vf_id)
 		return pf_msg.code;
 	}
 
+	if (!enetc_pf_is_vf_trusted(pf, vf_id)) {
+		pf_msg.class_id = ENETC_MSG_CLASS_ID_PERMISSION_DENY;
+		return pf_msg.code;
+	}
+
 	msg = (struct enetc_msg_mac_exact_filter *)msg_swbd->vaddr;
 	if (msg->mac_cnt > pf->caps.mac_filter_num) {
 		no_resource = true;
