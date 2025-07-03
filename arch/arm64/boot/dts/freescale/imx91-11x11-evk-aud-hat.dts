@@ -188,6 +188,14 @@
 	status = "okay";
 };
 
+&gpio2 {
+	pushbutton-gpios {
+		gpio-hog;
+		gpios = <27 GPIO_ACTIVE_LOW>;
+		input;
+	};
+};
+
 &lpi2c4 {
 	clock-frequency = <400000>;
 	dmas = <&edma2 10 0 0>, <&edma2 11 0 1>;
