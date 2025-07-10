@@ -174,7 +174,11 @@
 };
 
 /* pin conflicts */
-&sai3 {
+&tpm3 {
+	status = "disabled";
+};
+
+&tpm4 {
 	status = "disabled";
 };
 
