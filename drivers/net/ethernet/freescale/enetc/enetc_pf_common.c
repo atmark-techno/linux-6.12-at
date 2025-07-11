@@ -1741,11 +1741,13 @@ int enetc_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		}
 
 		err = pci_enable_sriov(pdev, num_vfs);
-		if (err < 0)
+		if (err < 0) {
 			dev_err(&pdev->dev,
 				"pci_enable_sriov err %d\n", err);
+			return err;
+		}
 
-		return err;
+		return num_vfs;
 	}
 
 	si = pci_get_drvdata(pdev);
