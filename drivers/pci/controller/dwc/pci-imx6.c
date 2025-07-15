@@ -1211,7 +1211,9 @@ static int imx_pcie_host_init(struct dw_pcie_rp *pp)
 	if (imx_pcie->drvdata->post_config)
 		imx_pcie->drvdata->post_config(imx_pcie);
 
-	pp->bridge->reset_root_port = &imx_pcie_reset_root_port;
+	/* Only assign the reset_root_port callback when bridge is present */
+	if (pp->bridge)
+		pp->bridge->reset_root_port = &imx_pcie_reset_root_port;
 
 	return 0;
 
