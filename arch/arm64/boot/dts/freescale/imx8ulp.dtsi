@@ -589,6 +589,20 @@
 				status = "disabled";
 			};
 
+			tpm7: pwm@29830000 {
+				compatible = "fsl,imx7ulp-pwm";
+				reg = <0x29830000 0x1000>;
+				clocks = <&pcc4 IMX8ULP_CLK_TPM7>;
+				clock-names = "ipg";
+				assigned-clocks = <&pcc4 IMX8ULP_CLK_TPM7>,
+						  <&cgc1 IMX8ULP_CLK_TPM7_SEL>;
+				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>,
+							 <&cgc1 IMX8ULP_CLK_SOSC>;
+				assigned-clock-rates = <24000000>;
+				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
 			lpi2c6: i2c@29840000 {
 				compatible = "fsl,imx8ulp-lpi2c", "fsl,imx7ulp-lpi2c";
 				reg = <0x29840000 0x10000>;
