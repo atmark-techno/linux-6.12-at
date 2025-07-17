@@ -19,6 +19,19 @@
 #include <linux/dma-fence-array.h>
 #include <drm/drm_ioctl.h>
 
+#include "dpu95-blit-registers.h"
+
+static const u32 fetch_unit_addr[3] = {
+	FETCHDECODE9_BASEADDRESS0,
+	FETCHROT9_BASEADDRESS0,
+	FETCHECO9_BASEADDRESS0
+};
+static const u32 store_unit_addr[3] = {
+	STORE9_BASEADDRESS0,
+	STORE9_BASEADDRESS1,
+	STORE9_BASEADDRESS2
+};
+
 struct dpu_be_fence {
 	struct dma_fence base;
 	spinlock_t lock;

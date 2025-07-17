@@ -40,6 +40,13 @@ struct drm_imx_dpu_frame_info {
 	__u64	uv_addr;
 };
 
+struct drm_imx_dpu_frame_plane_info {
+	int   src_plane_fd[3];
+	__u32 src_plane_offset[3];
+	int   dst_plane_fd[3];
+	__u32 dst_plane_offset[3];
+};
+
 #define DRM_IMX_DPU_SET_CMDLIST                 0x00
 #define DRM_IMX_DPU_WAIT                        0x01
 #define DRM_IMX_DPU_GET_PARAM                   0x02
