@@ -514,7 +514,7 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 		}
 	} else {
 		switch (pf->si->revision) {
-		case NETC_REVISION_4_1:
+		case ENETC_REV_4_1:
 			xpcs_ver = DW_XPCS_VER_MX95;
 			break;
 		default:
@@ -1661,6 +1661,24 @@ static u16 enetc_msg_handle_link_speed(struct enetc_msg_header *msg_hdr,
 	}
 }
 
+static u16 enetc_msg_handle_ip_revision(struct enetc_msg_header *msg_hdr,
+					struct enetc_pf *pf)
+{
+	union enetc_pf_msg pf_msg;
+
+	switch (msg_hdr->cmd_id) {
+	case ENETC_MSG_GET_IP_MN:
+		pf_msg.class_id = ENETC_MSG_CLASS_ID_IP_REVISION;
+		pf_msg.class_code_u8 = pf->si->revision & 0xff;
+
+		return pf_msg.code;
+	default:
+		pf_msg.class_id = ENETC_MSG_CLASS_ID_CMD_NOT_SUPPORT;
+
+		return pf_msg.code;
+	}
+}
+
 static bool enetc_msg_check_crc16(void *msg_addr, u32 msg_size)
 {
 	u8 *data_buf = msg_addr + 2;
@@ -1719,6 +1737,9 @@ void enetc_msg_handle_rxmsg(struct enetc_pf *pf, int vf_id, u16 *msg_code)
 		break;
 	case ENETC_MSG_CLASS_ID_LINK_SPEED:
 		*msg_code = enetc_msg_handle_link_speed(msg_hdr, pf, vf_id);
+		break;
+	case ENETC_MSG_CLASS_ID_IP_REVISION:
+		*msg_code = enetc_msg_handle_ip_revision(msg_hdr, pf);
 		break;
 	default:
 		pf_msg.class_id = ENETC_MSG_CLASS_ID_CMD_NOT_SUPPORT;
