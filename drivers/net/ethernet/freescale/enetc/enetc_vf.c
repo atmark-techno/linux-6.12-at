@@ -109,12 +109,11 @@ static int enetc_msg_vsi_send(struct enetc_si *si, struct enetc_msg_swbd *msg)
 static int enetc_msg_vf_register_link_status_notify(struct enetc_si *si, bool notify)
 {
 	struct device *dev = &si->pdev->dev;
-	struct enetc_msg_link_status *msg;
 	struct enetc_msg_swbd msg_swbd;
 	u8 cmd_id;
 	int err;
 
-	msg_swbd.size = ALIGN(sizeof(*msg), ENETC_MSG_ALIGN);
+	msg_swbd.size = ALIGN(sizeof(struct enetc_msg_generic), ENETC_MSG_ALIGN);
 	msg_swbd.vaddr = dma_alloc_coherent(dev, msg_swbd.size,
 					    &msg_swbd.dma, GFP_KERNEL);
 	if (!msg_swbd.vaddr)

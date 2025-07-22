@@ -221,13 +221,6 @@ struct enetc_msg_vlan_hash_filter {
 	u32 hash_tbl[];
 };
 
-/* message format of class_id 0x21, cmd_id: 0x3, flush VLAN address
- * filter table entries
- */
-struct enetc_msg_vlan_filter_flush {
-	struct enetc_msg_header hdr;
-};
-
 /* message format of class_id 0x21, cmd_id: 0x4, set VLAN promiscuous mode */
 struct enetc_msg_vlan_promsic_mode {
 	struct enetc_msg_header hdr;
@@ -236,27 +229,22 @@ struct enetc_msg_vlan_promsic_mode {
 	u8 resv:6;
 };
 
-/* message format of class_id 0x80, cmd_id 0x0~0x2
- * cmd_id 0x0: get the current link status
- * cmd_id 0x1: register to link status change notification
- * cmd_id 0x2: unregister from link status change notification
- */
-struct enetc_msg_link_status {
-	struct enetc_msg_header hdr;
-};
-
-/* message format of class_id 0x80, cmd_id 0x0~0x2
- * cmd_id 0x0: get the current link speed
- * cmd_id 0x1: register to link speed change notification
- * cmd_id 0x2: unregister from link speed change notification
- */
-struct enetc_msg_link_speed {
-	struct enetc_msg_header hdr;
-};
-
 /* The generic message format applies to the following messages:
  * Get IP revision message, class_id: 0xf0
  * cmd_id 1: get IP minor revision
+ *
+ * message format of class_id: 0x80
+ * cmd_id 0x0: get the current link status
+ * cmd_id 0x1: register to link status change notification
+ * cmd_id 0x2: unregister from link status change notification
+ *
+ * Link speed message, class_id: 0x81
+ * cmd_id 0x0: get the current link speed
+ * cmd_id 0x1: register to link speed change notification
+ * cmd_id 0x2: unregister from link speed change notification
+ *
+ * VLAN address filter table message, class_id 0x21
+ * cmd_id 0x3: Flush VLAN address filter table entries
  */
 struct enetc_msg_generic {
 	struct enetc_msg_header hdr;
