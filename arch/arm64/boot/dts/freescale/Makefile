@@ -489,7 +489,7 @@ dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk.dtb \
 			  imx93-11x11-evk-mt9m114.dtb \
 			  imx93-11x11-evk-ld.dtb \
 			  imx93-11x11-evk-iw612-otbr.dtb \
-			  imx93-11x11-evk-rpmsg.dtb imx93-11x11-evk-rpmsg-lpv.dtb \
+			  imx93-11x11-evk-rpmsg.dtb \
 			  imx93-11x11-evk-8mic-reve.dtb
 
 dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-frdm.dtb imx93-11x11-frdm-8mic-reve.dtb \
@@ -540,7 +540,6 @@ imx93-11x11-evk-pmic-pf0900-flexspi-m2-dtbs := imx93-11x11-evk-flexspi-m2.dtb im
 imx93-11x11-evk-pmic-pf0900-mt9m114-dtbs := imx93-11x11-evk-mt9m114.dtb imx93-11x11-evk-pmic-pf0900.dtbo
 imx93-11x11-evk-pmic-pf0900-ld-dtbs := imx93-11x11-evk-ld.dtb imx93-11x11-evk-pmic-pf0900.dtbo
 imx93-11x11-evk-pmic-pf0900-rpmsg-dtbs := imx93-11x11-evk-rpmsg.dtb imx93-11x11-evk-pmic-pf0900.dtbo
-imx93-11x11-evk-pmic-pf0900-rpmsg-lpv-dtbs := imx93-11x11-evk-rpmsg-lpv.dtb imx93-11x11-evk-pmic-pf0900.dtbo
 
 dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk-pmic-pf0900.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk-pmic-pf0900-root.dtb
@@ -556,7 +555,6 @@ dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk-pmic-pf0900-flexspi-m2.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk-pmic-pf0900-mt9m114.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk-pmic-pf0900-ld.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk-pmic-pf0900-rpmsg.dtb
-dtb-$(CONFIG_ARCH_MXC) += imx93-11x11-evk-pmic-pf0900-rpmsg-lpv.dtb
 
 dtb-$(CONFIG_ARCH_MXC) += imx91-11x11-frdm.dtb \
 			  imx91-11x11-frdm-mt9m114.dtb \
@@ -576,7 +574,7 @@ dtb-$(CONFIG_ARCH_MXC) += imx93-9x9-qsb.dtb \
 			  imx93-9x9-qsb-lpspi.dtb imx93-9x9-qsb-lpspi-slave.dtb \
 			  imx93-9x9-qsb-aud-hat.dtb \
 			  imx93-9x9-qsb-ld.dtb \
-			  imx93-9x9-qsb-rpmsg.dtb imx93-9x9-qsb-rpmsg-lpv.dtb
+			  imx93-9x9-qsb-rpmsg.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx93-tqma9352-mba93xxca.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx93-tqma9352-mba93xxla.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx91-9x9-qsb.dtb \
@@ -687,8 +685,7 @@ imx95-15x15-evk-os08a20-isp-lvds-dual-dtbs := imx95-15x15-evk-boe-wxga-lvds-two-
 dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-evk-os08a20-isp-lvds-dual.dtb
 
 DTC_FLAGS_imx95-15x15-evk-rpmsg := -@
-DTC_FLAGS_imx95-15x15-evk-rpmsg-lpv := -@
-dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-evk-rpmsg.dtb imx95-15x15-evk-rpmsg-lpv.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx95-15x15-evk-rpmsg.dtb
 
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk.dtb imx95-19x19-evk-root.dtb imx95-19x19-evk-inmate.dtb \
 			  imx95-19x19-evk-lpspi-slave.dtb
@@ -914,8 +911,7 @@ imx95-19x19-verdin-ti-serdes-dtbs := imx95-19x19-verdin.dtb imx95-19x19-verdin-t
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-verdin-ti-serdes.dtb
 
 DTC_FLAGS_imx95-19x19-evk-rpmsg := -@
-DTC_FLAGS_imx95-19x19-evk-rpmsg-lpv := -@
-dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-rpmsg.dtb imx95-19x19-evk-rpmsg-lpv.dtb
+dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-evk-rpmsg.dtb
 
 imx95-19x19-verdin-rm692c9-dtbs := imx95-19x19-verdin.dtb imx95-19x19-verdin-rm692c9.dtbo
 dtb-$(CONFIG_ARCH_MXC) += imx95-19x19-verdin-rm692c9.dtb
