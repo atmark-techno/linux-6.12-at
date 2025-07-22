@@ -161,11 +161,4 @@ enum {
 #define WDOG_B_CFG_WARM			0x40
 #define WDOG_B_CFG_COLD			0x80
 
-/* PF9453_REG_CONFIG2 bits */
-#define I2C_LT_MASK			0x03
-#define I2C_LT_FORCE_DISABLE		0x00
-#define I2C_LT_ON_STANDBY_RUN		0x01
-#define I2C_LT_ON_RUN			0x02
-#define I2C_LT_FORCE_ENABLE		0x03
-
 #endif /* __LINUX_REG_PF9453_H__ */
