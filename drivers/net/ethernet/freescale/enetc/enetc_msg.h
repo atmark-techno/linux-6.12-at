@@ -8,6 +8,14 @@
 #define ENETC_MSG_EXT_BODY_LEN(l)	((l) / ENETC_MSG_ALIGN - 1)
 #define ENETC_MSG_SIZE(l)		(((l) + 1) * ENETC_MSG_ALIGN)
 
+#define ENETC_MSG_CODE_SUCCESS			0x100
+#define ENETC_MSG_CODE_PERMISSION_DENY		0x200
+#define ENETC_MSG_CODE_NOT_SUPPORT		0x300
+#define ENETC_MSG_CODE_BUSY			0x400
+#define ENETC_MSG_CODE_CRC_ERROR		0x500
+#define ENETC_MSG_CODE(id, code)		(((id) & 0xff) << 8 | \
+						 ((code) & 0xf) << 4)
+
 /* Common Class ID for PSI-TO-VSI and VSI-TO-PSI messages */
 #define ENETC_MSG_CLASS_ID_MAC_FILTER		0x20
 #define ENETC_MSG_CLASS_ID_VLAN_FILTER		0x21
