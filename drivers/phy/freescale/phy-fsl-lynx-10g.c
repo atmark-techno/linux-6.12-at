@@ -1157,6 +1157,46 @@ static int lynx_pccr_write(struct lynx_10g_lane *lane,
 	return 0;
 }
 
+static int lynx_10g_lane_pccr_val(struct lynx_10g_lane *lane,
+				  enum lynx_lane_mode mode,
+				  u32 *val)
+{
+	if (lane->default_pccr[mode]) {
+		*val = lane->default_pccr[mode];
+		return 0;
+	}
+
+	*val = 0;
+
+	switch (mode) {
+	case LANE_MODE_1000BASEKX:
+		*val |= PCCR8_SGMIIa_KX;
+		fallthrough;
+	case LANE_MODE_1000BASEX_SGMII:
+	case LANE_MODE_2500BASEX:
+		*val |= PCCR8_SGMIIa_CFG;
+		break;
+	case LANE_MODE_QSGMII:
+		*val |= PCCR9_QSGMIIa_CFG;
+		break;
+	case LANE_MODE_10G_QXGMII:
+		*val |= PCCR9_QXGMIIa_CFG;
+		break;
+	case LANE_MODE_10GBASER:
+	case LANE_MODE_10GBASEKR:
+		*val |= PCCRB_XFIa_CFG;
+		break;
+	case LANE_MODE_USXGMII:
+		*val |= PCCRB_SXGMIIa_CFG;
+		break;
+	default:
+		/* Should be unreachable due to lynx_lane_supports_mode() */
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int lynx_pcvt_read(struct lynx_10g_lane *lane, enum lynx_lane_mode mode,
 			  int cr, u32 *val)
 {
@@ -1642,40 +1682,10 @@ static int lynx_10g_lane_enable_pcvt(struct lynx_10g_lane *lane,
 		err = 0;
 	}
 
-	if (lane->default_pccr[mode]) {
-		err = lynx_pccr_write(lane, mode, lane->default_pccr[mode]);
-		goto out;
-	}
+	err = lynx_10g_lane_pccr_val(lane, mode, &val);
+	if (err == 0)
+		err = lynx_pccr_write(lane, mode, val);
 
-	val = 0;
-
-	switch (mode) {
-	case LANE_MODE_1000BASEKX:
-		val |= PCCR8_SGMIIa_KX;
-		fallthrough;
-	case LANE_MODE_1000BASEX_SGMII:
-	case LANE_MODE_2500BASEX:
-		val |= PCCR8_SGMIIa_CFG;
-		break;
-	case LANE_MODE_QSGMII:
-		val |= PCCR9_QSGMIIa_CFG;
-		break;
-	case LANE_MODE_10G_QXGMII:
-		val |= PCCR9_QXGMIIa_CFG;
-		break;
-	case LANE_MODE_10GBASER:
-	case LANE_MODE_10GBASEKR:
-		val |= PCCRB_XFIa_CFG;
-		break;
-	case LANE_MODE_USXGMII:
-		val |= PCCRB_SXGMIIa_CFG;
-		break;
-	default:
-		err = 0;
-		goto out;
-	}
-
-	err = lynx_pccr_write(lane, mode, val);
 out:
 	spin_unlock(&priv->pccr_lock);
 
