@@ -173,7 +173,6 @@ struct imx_pcie {
 	u32			controller_id;
 	struct reset_control	*pciephy_reset;
 	struct reset_control	*apps_reset;
-	u32			link_status;
 	u32			tx_deemph_gen1;
 	u32			tx_deemph_gen2_3p5db;
 	u32			tx_deemph_gen2_6db;
@@ -1507,6 +1506,9 @@ static int imx_pcie_suspend_noirq(struct device *dev)
 	if (!(imx_pcie->drvdata->flags & IMX_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
 
+	if (imx_check_flag(imx_pcie, IMX_PCIE_FLAG_LINK_NOTIFY))
+		regmap_clear_bits(imx_pcie->iomuxc_gpr, IMX95_LINK_INT_CTRL_STS,
+				  IMX95_LINK_DOWN_INT_EN | IMX95_LINK_UP_INT_EN);
 	imx_pcie_msi_save_restore(imx_pcie, true);
 	if (imx_check_flag(imx_pcie, IMX_PCIE_FLAG_MONITOR_DEV))
 		imx_pcie_lut_save(imx_pcie);
@@ -1558,6 +1560,9 @@ static int imx_pcie_resume_noirq(struct device *dev)
 	if (imx_check_flag(imx_pcie, IMX_PCIE_FLAG_MONITOR_DEV))
 		imx_pcie_lut_restore(imx_pcie);
 	imx_pcie_msi_save_restore(imx_pcie, false);
+	if (imx_check_flag(imx_pcie, IMX_PCIE_FLAG_LINK_NOTIFY))
+		regmap_set_bits(imx_pcie->iomuxc_gpr, IMX95_LINK_INT_CTRL_STS,
+				IMX95_LINK_DOWN_INT_EN | IMX95_LINK_UP_INT_EN);
 
 	return 0;
 }
@@ -1586,9 +1591,8 @@ static int imx_pcie_reset_root_port(struct pci_host_bridge *bridge,
 	if (ret)
 		goto err_host_deinit;
 
-	/* Make sure that the LINK_UP_INT_EN is set */
 	regmap_set_bits(imx_pcie->iomuxc_gpr, IMX95_LINK_INT_CTRL_STS,
-			IMX95_LINK_UP_INT_EN);
+			IMX95_LINK_DOWN_INT_EN | IMX95_LINK_UP_INT_EN);
 
 	imx_pcie_start_link(pci);
 	ret = dw_pcie_wait_for_link(pci);
@@ -1727,33 +1731,6 @@ static irqreturn_t host_wake_irq_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t imx_pcie_link_irq_handler(int irq, void *priv)
-{
-	u32 val;
-	struct imx_pcie *imx_pcie = (struct imx_pcie *) priv;
-	struct dw_pcie *pci = imx_pcie->pci;
-	struct device *dev = pci->dev;
-
-	regmap_read(imx_pcie->iomuxc_gpr, IMX95_LINK_INT_CTRL_STS, &val);
-	imx_pcie->link_status = val;
-	regmap_set_bits(imx_pcie->iomuxc_gpr, IMX95_LINK_INT_CTRL_STS,
-			IMX95_LINK_DOWN_INT_STS | IMX95_LINK_UP_INT_STS);
-
-	if (val & IMX95_LINK_DOWN_INT_STS) {
-		dev_err(dev, "PCIe(LNK_STS:0x%08x) link down detected\n", val);
-		regmap_clear_bits(imx_pcie->iomuxc_gpr, IMX95_LINK_INT_CTRL_STS,
-				  IMX95_LINK_DOWN_INT_EN);
-	}
-
-	if (val & IMX95_LINK_UP_INT_STS) {
-		dev_err(dev, "PCIe(LNK_STS:0x%08x) link up detected\n", val);
-		regmap_clear_bits(imx_pcie->iomuxc_gpr, IMX95_LINK_INT_CTRL_STS,
-				  IMX95_LINK_UP_INT_EN);
-	}
-
-	return IRQ_WAKE_THREAD;
-}
-
 static irqreturn_t imx_pcie_link_irq_handler_thread(int irq, void *priv)
 {
 	struct pci_dev *pdev __free(pci_dev_put) = NULL;
@@ -1761,7 +1738,11 @@ static irqreturn_t imx_pcie_link_irq_handler_thread(int irq, void *priv)
 	struct dw_pcie *pci = imx_pcie->pci;
 	struct dw_pcie_rp *pp = &pci->pp;
 	struct device *dev = pci->dev;
-	u32 val = imx_pcie->link_status;
+	u32 val;
+
+	regmap_read_bypassed(imx_pcie->iomuxc_gpr, IMX95_LINK_INT_CTRL_STS, &val);
+	regmap_set_bits(imx_pcie->iomuxc_gpr, IMX95_LINK_INT_CTRL_STS,
+			IMX95_LINK_DOWN_INT_STS | IMX95_LINK_UP_INT_STS);
 
 	if (val & IMX95_LINK_DOWN_INT_STS) {
 		dev_dbg(dev, "Stop root bus and handle link down\n");
@@ -1773,17 +1754,13 @@ static irqreturn_t imx_pcie_link_irq_handler_thread(int irq, void *priv)
 			pci_unlock_rescan_remove();
 		}
 		pci_host_handle_link_down(pp->bridge);
-		regmap_set_bits(imx_pcie->iomuxc_gpr, IMX95_LINK_INT_CTRL_STS,
-				IMX95_LINK_DOWN_INT_EN);
 	}
 
 	if (val & IMX95_LINK_UP_INT_STS) {
-		dev_err(dev, "Rescan bus after link up is detected\n");
+		dev_dbg(dev, "Rescan bus after link up is detected\n");
 		pci_lock_rescan_remove();
 		pci_rescan_bus(pp->bridge->bus);
 		pci_unlock_rescan_remove();
-		regmap_set_bits(imx_pcie->iomuxc_gpr, IMX95_LINK_INT_CTRL_STS,
-				IMX95_LINK_UP_INT_EN);
 	}
 
 	return IRQ_HANDLED;
@@ -1994,9 +1971,9 @@ static int imx_pcie_probe(struct platform_device *pdev)
 			if (i < 0)
 				return dev_err_probe(dev, ret,
 						     "unable to find LNK notify IRQ\n");
-			ret = devm_request_threaded_irq(dev, i, imx_pcie_link_irq_handler,
+			ret = devm_request_threaded_irq(dev, i, NULL,
 							imx_pcie_link_irq_handler_thread,
-							IRQF_SHARED,
+							IRQF_ONESHOT,
 							"lnk_notify", imx_pcie);
 			if (ret)
 				return dev_err_probe(dev, ret,
