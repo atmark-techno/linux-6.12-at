@@ -262,6 +262,16 @@ void netc_port_set_tx_pause(struct netc_port *port, bool tx_pause);
 void netc_port_set_all_tc_msdu(struct netc_port *port, u32 *max_sdu);
 struct pci_dev *netc_switch_get_timer(struct netc_switch *priv);
 void netc_mac_port_wr(struct netc_port *port, u32 reg, u32 val);
+u32 netc_mac_port_rd(struct netc_port *port, u32 reg);
+void netc_destroy_fdb_list(struct netc_switch *priv);
+void netc_destroy_vlan_list(struct netc_switch *priv);
+void netc_switch_fixed_config(struct netc_switch *priv);
+void netc_port_fixed_config(struct netc_port *port);
+int netc_add_ett_group_entries(struct netc_switch *priv,
+			       u32 untagged_port_bitmap,
+			       u32 ett_base_eid, u32 ect_base_eid);
+void netc_switch_delete_vlan_egress_rule(struct netc_switch *priv,
+					 struct netc_vlan_entry *entry);
 
 /* TC APIs */
 int netc_tc_query_caps(struct tc_query_caps_base *base);
@@ -318,6 +328,10 @@ bool netc_port_rxtstamp(struct dsa_switch *ds, int port,
 void netc_port_txtstamp(struct dsa_switch *ds, int port_id,
 			struct sk_buff *skb);
 int netc_port_set_ptp_filter(struct netc_port *port, int ptp_filter);
+
+/* Power Management */
+int netc_suspend(struct dsa_switch *ds);
+int netc_resume(struct dsa_switch *ds);
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 void netc_create_debugfs(struct netc_switch *priv);
