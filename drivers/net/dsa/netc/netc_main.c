@@ -741,6 +741,13 @@ static void netc_switch_isit_key_config(struct netc_switch *priv)
 	netc_base_wr(regs, NETC_ISIDKCCR0(1), val);
 }
 
+static void netc_switch_fixed_config(struct netc_switch *priv)
+{
+	netc_switch_dos_default_config(priv);
+	netc_switch_vfht_default_config(priv);
+	netc_switch_isit_key_config(priv);
+}
+
 static void netc_port_set_max_frame_size(struct netc_port *port,
 					 u32 max_frame_size)
 {
@@ -787,17 +794,10 @@ static void netc_port_set_mlo(struct netc_port *port, int mlo)
 		netc_port_wr(port, NETC_BPCR, val);
 }
 
-static void netc_port_default_config(struct netc_port *port)
+static void netc_port_fixed_config(struct netc_port *port)
 {
 	u32 pqnt = 0xffff, qth = 0xffff / 2;
 	u32 val;
-
-	/* Default VLAN unware */
-	val = netc_port_rd(port, NETC_BPDVR);
-	if (!(val & BPDVR_RXVAM)) {
-		val |= BPDVR_RXVAM;
-		netc_port_wr(port, NETC_BPDVR, val);
-	}
 
 	/* Default IPV and DR setting */
 	val = netc_port_rd(port, NETC_PQOSMR);
@@ -830,13 +830,28 @@ static void netc_port_default_config(struct netc_port *port)
 		 * if a pause condition still exists.
 		 */
 		netc_port_wr(port, NETC_PM_PAUSE_TRHESH(0), qth);
+	}
+}
+
+static void netc_port_default_config(struct netc_port *port)
+{
+	u32 val;
+
+	netc_port_fixed_config(port);
+
+	/* Default VLAN unware */
+	val = netc_port_rd(port, NETC_BPDVR);
+	if (!(val & BPDVR_RXVAM)) {
+		val |= BPDVR_RXVAM;
+		netc_port_wr(port, NETC_BPDVR, val);
+	}
+
+	if (dsa_port_is_user(port->dp)) {
 		netc_port_set_mlo(port, MLO_DISABLE);
 	} else {
-		val = netc_port_rd(port, NETC_BPCR);
-		val |= BPCR_SRCPRND;
+		val = netc_port_rd(port, NETC_BPCR) | BPCR_SRCPRND;
+		val = u32_replace_bits(val, MLO_HW, BPCR_MLO);
 		netc_port_wr(port, NETC_BPCR, val);
-
-		netc_port_set_mlo(port, MLO_HW);
 	}
 
 	netc_port_set_max_frame_size(port, NETC_MAX_FRAME_LEN);
@@ -892,9 +907,7 @@ static int netc_setup(struct dsa_switch *ds)
 	INIT_DELAYED_WORK(&priv->fdbt_clean, netc_clean_fdbt_aging_entries);
 	mutex_init(&priv->bpt_lock);
 
-	netc_switch_dos_default_config(priv);
-	netc_switch_vfht_default_config(priv);
-	netc_switch_isit_key_config(priv);
+	netc_switch_fixed_config(priv);
 
 	/* default setting for ports */
 	for (i = 0; i < priv->num_ports; i++) {
@@ -2125,10 +2138,7 @@ static int netc_resume(struct dsa_switch *ds)
 	if (err)
 		return err;
 
-	netc_switch_dos_default_config(priv);
-	netc_switch_vfht_default_config(priv);
-	netc_switch_isit_key_config(priv);
-
+	netc_switch_fixed_config(priv);
 	err = netc_switch_bpt_default_config(priv);
 	if (err)
 		goto deinit_ntmp_priv;
