@@ -100,6 +100,19 @@ enum netc_ptp_type {
 	NETC_PTP_MAX,
 };
 
+struct netc_port_db {
+	u32 bpdvr;
+	u32 bpcr;
+	u32 maxfrm;
+	u32 bpstgsr;
+	u32 ptgscr;
+	u32 ptctmsdur[NETC_TC_NUM];
+	u32 ptccbsr1[NETC_TC_NUM];
+	u32 ptccbsr2[NETC_TC_NUM];
+	u32 mmcsr;
+	int ptp_filter;
+};
+
 struct netc_switch;
 
 struct netc_port {
@@ -120,6 +133,7 @@ struct netc_port {
 	u16 pvid;
 	u16 vlan_aware:1;
 	u16 tx_pause:1;
+	u16 enabled:1;
 
 	enum netc_port_offloads offloads;
 
@@ -138,6 +152,7 @@ struct netc_port {
 
 	bool tx_lpi_enabled;
 	u32 tx_lpi_timer;
+	struct netc_port_db db;
 };
 
 enum netc_port_mac {
@@ -302,6 +317,7 @@ bool netc_port_rxtstamp(struct dsa_switch *ds, int port,
 			struct sk_buff *skb, unsigned int type);
 void netc_port_txtstamp(struct dsa_switch *ds, int port_id,
 			struct sk_buff *skb);
+int netc_port_set_ptp_filter(struct netc_port *port, int ptp_filter);
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 void netc_create_debugfs(struct netc_switch *priv);
