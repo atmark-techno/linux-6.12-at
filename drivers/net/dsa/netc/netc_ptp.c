@@ -239,7 +239,7 @@ int netc_port_hwtstamp_set(struct dsa_switch *ds, int port_id,
 		port->offloads |= NETC_FLAG_TX_ONESTEP_SYNC;
 		break;
 	case HWTSTAMP_TX_OFF:
-		port->offloads &= !(NETC_FLAG_TX_TSTAMP |
+		port->offloads &= ~(NETC_FLAG_TX_TSTAMP |
 				    NETC_FLAG_TX_ONESTEP_SYNC);
 		break;
 	default:
