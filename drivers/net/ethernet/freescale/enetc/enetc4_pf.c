@@ -1596,6 +1596,38 @@ static const struct pci_device_id enetc4_pf_id_table[] = {
 MODULE_DEVICE_TABLE(pci, enetc4_pf_id_table);
 
 #ifdef CONFIG_PCI_IOV
+static int enetc4_enable_sriov(struct pci_dev *pdev, int num_vfs)
+{
+	u16 ctrl = PCI_SRIOV_CTRL_VFE | PCI_SRIOV_CTRL_MSE;
+	int pos;
+
+	if (!num_vfs)
+		return 0;
+
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+	if (!pos)
+		return -ENODEV;
+
+	pci_write_config_word(pdev, pos + PCI_SRIOV_NUM_VF, num_vfs);
+	pci_write_config_word(pdev, pos + PCI_SRIOV_CTRL, ctrl);
+
+	return 0;
+}
+
+static int enetc4_disable_sriov(struct pci_dev *pdev)
+{
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+	if (!pos)
+		return -ENODEV;
+
+	pci_write_config_word(pdev, pos + PCI_SRIOV_CTRL, 0);
+	pci_write_config_word(pdev, pos + PCI_SRIOV_NUM_VF, 0);
+
+	return 0;
+}
+
 static void enetc4_sriov_suspend(struct pci_dev *pdev)
 {
 	struct enetc_si *si = pci_get_drvdata(pdev);
@@ -1604,7 +1636,7 @@ static void enetc4_sriov_suspend(struct pci_dev *pdev)
 	if (pf->num_vfs == 0)
 		return;
 
-	pci_disable_sriov(pdev);
+	enetc4_disable_sriov(pdev);
 	enetc_msg_psi_free(pf);
 }
 
@@ -1623,9 +1655,10 @@ static int enetc4_sriov_resume(struct pci_dev *pdev)
 		return err;
 	}
 
-	err = pci_enable_sriov(pdev, pf->num_vfs);
+	err = enetc4_enable_sriov(pdev, pf->num_vfs);
 	if (err) {
-		dev_err(&pdev->dev, "pci_enable_sriov err %d\n", err);
+		dev_err(&pdev->dev, "Failed to enable SRIOV, err:%pe\n",
+			ERR_PTR(err));
 		enetc_msg_psi_free(pf);
 
 		return err;
