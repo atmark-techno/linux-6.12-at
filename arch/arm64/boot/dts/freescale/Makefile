@@ -437,6 +437,7 @@ armadillo_900-all-dtbs = armadillo_900.dtb \
 			 armadillo_900-tlv320aic3110.dtbo \
 			 armadillo_iotg_a9e.dtbo \
 			 armadillo_iotg_a9e-at-dtweb.dtbo \
+			 armadillo_iotg_a9e-con10-wisun.dtbo \
 			 armadillo_iotg_a9e-lbes5pl2el.dtbo \
 			 armadillo_iotg_a9e-nousb.dtbo \
 			 armadillo_iotg_a9e-sim7672.dtbo \
