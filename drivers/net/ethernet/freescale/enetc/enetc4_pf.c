@@ -1685,7 +1685,6 @@ static void enetc4_pf_power_down(struct enetc_si *si)
 	if (pf->pcs)
 		enetc4_pf_imdio_regulator_disable(pf);
 	enetc_free_msix(priv);
-	enetc_free_cbdr(si);
 	pci_disable_device(pdev);
 	pcie_flr(pdev);
 }
@@ -1708,9 +1707,7 @@ static int enetc4_pf_power_up(struct pci_dev *pdev, struct device_node *node)
 	}
 
 	pci_set_master(pdev);
-	err = enetc_init_cbdr(si);
-	if (err)
-		goto err_init_cbdr;
+	enetc4_enable_cbdr(si);
 
 	err = enetc_setup_mac_addresses(node, pf);
 	if (err)
@@ -1747,8 +1744,6 @@ err_imdio_reg_enable:
 err_alloc_msix:
 err_config_si:
 err_init_address:
-	enetc_free_cbdr(si);
-err_init_cbdr:
 	pci_disable_device(pdev);
 
 	return err;

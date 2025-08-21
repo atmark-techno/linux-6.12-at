@@ -574,6 +574,7 @@ void enetc_eee_mode_set(struct net_device *dev, bool enable);
 /* control buffer descriptor ring (CBDR) */
 int enetc_init_cbdr(struct enetc_si *si);
 void enetc_free_cbdr(struct enetc_si *si);
+void enetc4_enable_cbdr(struct enetc_si *si);
 int enetc_set_mac_flt_entry(struct enetc_si *si, int index,
 			    char *mac_addr, int si_map);
 int enetc_clear_mac_flt_entry(struct enetc_si *si, int index);
