@@ -1711,7 +1711,7 @@ static int enetc4_pf_power_up(struct pci_dev *pdev, struct device_node *node)
 
 	err = enetc_setup_mac_addresses(node, pf);
 	if (err)
-		goto err_init_address;
+		return err;
 
 	enetc_load_primary_mac_addr(&si->hw, priv->ndev);
 
@@ -1720,32 +1720,24 @@ static int enetc4_pf_power_up(struct pci_dev *pdev, struct device_node *node)
 	err = enetc_configure_si(priv);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to configure SI\n");
-		goto err_config_si;
+		return err;
 	}
 
 	err = enetc_alloc_msix_vectors(priv);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to alloc MSI-X vectors\n");
-		goto err_alloc_msix;
+		return err;
 	}
 
 	if (pf->pcs) {
 		err = enetc4_pf_imdio_regulator_enable(pf);
 		if (err) {
 			dev_err(&pdev->dev, "imdio regulator enable failed\n");
-			goto err_imdio_reg_enable;
+			return err;
 		}
 	}
 
 	return 0;
-
-err_imdio_reg_enable:
-err_alloc_msix:
-err_config_si:
-err_init_address:
-	pci_disable_device(pdev);
-
-	return err;
 }
 
 static void enetc4_pf_set_wol(struct enetc_si *si, bool en)
