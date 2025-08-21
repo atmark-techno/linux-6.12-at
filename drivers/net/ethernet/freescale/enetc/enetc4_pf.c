@@ -1601,7 +1601,19 @@ static const struct pci_device_id enetc4_pf_id_table[] = {
 MODULE_DEVICE_TABLE(pci, enetc4_pf_id_table);
 
 #ifdef CONFIG_PCI_IOV
-static int enetc4_sriov_suspend_resume_configure(struct pci_dev *pdev, bool suspend)
+static void enetc4_sriov_suspend(struct pci_dev *pdev)
+{
+	struct enetc_si *si = pci_get_drvdata(pdev);
+	struct enetc_pf *pf = enetc_si_priv(si);
+
+	if (pf->num_vfs == 0)
+		return;
+
+	pci_disable_sriov(pdev);
+	enetc_msg_psi_free(pf);
+}
+
+static int enetc4_sriov_resume(struct pci_dev *pdev)
 {
 	struct enetc_si *si = pci_get_drvdata(pdev);
 	struct enetc_pf *pf = enetc_si_priv(si);
@@ -1610,32 +1622,28 @@ static int enetc4_sriov_suspend_resume_configure(struct pci_dev *pdev, bool susp
 	if (pf->num_vfs == 0)
 		return 0;
 
-	if (suspend) {
-		pci_disable_sriov(pdev);
-		enetc_msg_psi_free(pf);
-	} else {
-		err = enetc_msg_psi_init(pf);
-		if (err) {
-			dev_err(&pdev->dev, "enetc_msg_psi_init (%d)\n", err);
-			return err;
-		}
+	err = enetc_msg_psi_init(pf);
+	if (err) {
+		dev_err(&pdev->dev, "enetc_msg_psi_init (%d)\n", err);
+		return err;
+	}
 
-		err = pci_enable_sriov(pdev, pf->num_vfs);
-		if (err) {
-			dev_err(&pdev->dev, "pci_enable_sriov err %d\n", err);
-			goto err_en_sriov;
-		}
+	err = pci_enable_sriov(pdev, pf->num_vfs);
+	if (err) {
+		dev_err(&pdev->dev, "pci_enable_sriov err %d\n", err);
+		enetc_msg_psi_free(pf);
+
+		return err;
 	}
 
 	return 0;
-
-err_en_sriov:
-	enetc_msg_psi_free(pf);
-
-	return err;
 }
 #else
-static int enetc4_sriov_suspend_resume_configure(struct pci_dev *pdev, bool suspend)
+static void enetc4_sriov_suspend(struct pci_dev *pdev)
+{
+}
+
+static int enetc4_sriov_resume(struct pci_dev *pdev)
 {
 	return 0;
 }
@@ -1774,7 +1782,7 @@ static int __maybe_unused enetc4_pf_suspend(struct device *dev)
 	priv = netdev_priv(si->ndev);
 
 	if (!netif_running(si->ndev)) {
-		enetc4_sriov_suspend_resume_configure(pdev, true);
+		enetc4_sriov_suspend(pdev);
 		rtnl_lock();
 		enetc4_pf_power_down(si);
 		rtnl_unlock();
@@ -1782,7 +1790,7 @@ static int __maybe_unused enetc4_pf_suspend(struct device *dev)
 	}
 
 	if (netc_ierb_may_wakeonlan() == 0)
-		enetc4_sriov_suspend_resume_configure(pdev, true);
+		enetc4_sriov_suspend(pdev);
 
 	netif_device_detach(si->ndev);
 
@@ -1827,7 +1835,7 @@ static int __maybe_unused enetc4_pf_resume(struct device *dev)
 		if (err)
 			return err;
 
-		return enetc4_sriov_suspend_resume_configure(pdev, false);
+		return enetc4_sriov_resume(pdev);
 	}
 
 	rtnl_lock();
@@ -1853,7 +1861,7 @@ static int __maybe_unused enetc4_pf_resume(struct device *dev)
 	netif_device_attach(si->ndev);
 
 	if (netc_ierb_may_wakeonlan() == 0)
-		enetc4_sriov_suspend_resume_configure(pdev, false);
+		enetc4_sriov_resume(pdev);
 
 	return 0;
 
