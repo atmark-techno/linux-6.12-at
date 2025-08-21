@@ -4142,8 +4142,8 @@ int enetc_resume(struct net_device *ndev, bool wol)
 
 	if (!wol) {
 		err = clk_prepare_enable(priv->ref_clk);
-			if (err)
-				return err;
+		if (err)
+			return err;
 
 		err = enetc_setup_irqs(priv);
 		if (err)
