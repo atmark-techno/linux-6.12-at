@@ -1758,6 +1758,7 @@ static int __maybe_unused enetc4_pf_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct enetc_ndev_priv *priv;
 	struct enetc_si *si;
+	bool wol;
 
 	if (enetc_pf_is_owned_by_mcore(pdev))
 		return 0;
@@ -1779,17 +1780,19 @@ static int __maybe_unused enetc4_pf_suspend(struct device *dev)
 	netif_device_detach(si->ndev);
 
 	rtnl_lock();
-	enetc_suspend(si->ndev, netc_ierb_may_wakeonlan() > 0);
+	wol = !!priv->wolopts;
+	enetc_suspend(si->ndev, wol);
 
 	if (netc_ierb_may_wakeonlan() > 0) {
-		pci_pme_active(pdev, true);
-
-		enetc4_pf_set_wol(si, true);
+		if (wol) {
+			pci_pme_active(pdev, true);
+			enetc4_pf_set_wol(si, true);
+		}
 
 		pci_save_state(pdev);
 		pci_disable_device(pdev);
 		pci_set_power_state(pdev, PCI_D3hot);
-		phylink_suspend(priv->phylink, true);
+		phylink_suspend(priv->phylink, wol);
 	} else {
 		phylink_suspend(priv->phylink, false);
 		enetc4_pf_power_down(si);
@@ -1805,6 +1808,7 @@ static int __maybe_unused enetc4_pf_resume(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct enetc_ndev_priv *priv;
 	struct enetc_si *si;
+	bool wol;
 	int err;
 
 	if (enetc_pf_is_owned_by_mcore(pdev))
@@ -1824,13 +1828,15 @@ static int __maybe_unused enetc4_pf_resume(struct device *dev)
 
 	rtnl_lock();
 
+	wol = !!priv->wolopts;
 	if (netc_ierb_may_wakeonlan() > 0) {
 		pci_set_power_state(pdev, PCI_D0);
 		err = pci_enable_device(pdev);
 		if (err)
 			goto err_unlock_rtnl;
 		pci_restore_state(pdev);
-		enetc4_pf_set_wol(si, false);
+		if (wol)
+			enetc4_pf_set_wol(si, false);
 	} else {
 		err = enetc4_pf_power_up(pdev, node);
 		if (err)
@@ -1838,7 +1844,7 @@ static int __maybe_unused enetc4_pf_resume(struct device *dev)
 	}
 
 	phylink_resume(priv->phylink);
-	enetc_resume(si->ndev, netc_ierb_may_wakeonlan() > 0);
+	enetc_resume(si->ndev, wol);
 
 	rtnl_unlock();
 
