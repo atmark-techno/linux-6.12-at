@@ -1708,8 +1708,6 @@ static int enetc4_pf_power_up(struct pci_dev *pdev, struct device_node *node)
 	}
 
 	pci_set_master(pdev);
-	pci_restore_state(pdev);
-
 	err = enetc_init_cbdr(si);
 	if (err)
 		goto err_init_cbdr;
