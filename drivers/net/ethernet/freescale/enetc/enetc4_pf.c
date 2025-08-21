@@ -1678,13 +1678,13 @@ static void enetc4_pf_imdio_regulator_disable(struct enetc_pf *pf)
 
 static void enetc4_pf_power_down(struct enetc_si *si)
 {
-	struct enetc_ndev_priv *priv = netdev_priv(si->ndev);
 	struct enetc_pf *pf = enetc_si_priv(si);
 	struct pci_dev *pdev = si->pdev;
 
 	if (pf->pcs)
 		enetc4_pf_imdio_regulator_disable(pf);
-	enetc_free_msix(priv);
+
+	pci_free_irq_vectors(pdev);
 	pci_disable_device(pdev);
 	pcie_flr(pdev);
 }
@@ -1723,9 +1723,9 @@ static int enetc4_pf_power_up(struct pci_dev *pdev, struct device_node *node)
 		goto err_config_si;
 	}
 
-	err = enetc_alloc_msix(priv);
+	err = enetc_alloc_msix_vectors(priv);
 	if (err) {
-		dev_err(&pdev->dev, "MSIX alloc failed\n");
+		dev_err(&pdev->dev, "Failed to alloc MSI-X vectors\n");
 		goto err_alloc_msix;
 	}
 
@@ -1740,7 +1740,6 @@ static int enetc4_pf_power_up(struct pci_dev *pdev, struct device_node *node)
 	return 0;
 
 err_imdio_reg_enable:
-	enetc_free_msix(priv);
 err_alloc_msix:
 err_config_si:
 err_init_address:

@@ -4112,6 +4112,7 @@ static int enetc_set_rsc(struct net_device *ndev, bool en)
 int enetc_suspend(struct net_device *ndev, bool wol)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	int i;
 
 	enetc_stop(ndev);
 
@@ -4120,6 +4121,12 @@ int enetc_suspend(struct net_device *ndev, bool wol)
 	/* Avoids dangling pointers and also frees old resources */
 	enetc_assign_rx_resources(priv, NULL);
 	enetc_assign_tx_resources(priv, NULL);
+
+	for (i = 0; i < priv->bdr_int_num; i++) {
+		struct enetc_int_vector *v = priv->int_vector[i];
+
+		cancel_work_sync(&v->rx_dim.work);
+	}
 
 	if (!wol) {
 		enetc_free_irqs(priv);
@@ -4769,23 +4776,33 @@ static int enetc_bdr_init(struct enetc_ndev_priv *priv, int i, int v_tx_rings)
 	return 0;
 }
 
+int enetc_alloc_msix_vectors(struct enetc_ndev_priv *priv)
+{
+	int n, nvec;
+
+	nvec = ENETC_BDR_INT_BASE_IDX + priv->bdr_int_num;
+	/* allocate MSIX for both messaging and Rx/Tx interrupts */
+	n = pci_alloc_irq_vectors(priv->si->pdev, nvec, nvec,
+				  PCI_IRQ_MSIX);
+
+	if (n < 0 || n != nvec)
+		return n < 0 ? n : -EPERM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(enetc_alloc_msix_vectors);
+
 int enetc_alloc_msix(struct enetc_ndev_priv *priv)
 {
 	struct pci_dev *pdev = priv->si->pdev;
 	int v_tx_rings, v_remainder;
 	int num_stack_tx_queues;
 	int first_xdp_tx_ring;
-	int i, n, err, nvec;
+	int i, err;
 
-	nvec = ENETC_BDR_INT_BASE_IDX + priv->bdr_int_num;
-	/* allocate MSIX for both messaging and Rx/Tx interrupts */
-	n = pci_alloc_irq_vectors(pdev, nvec, nvec, PCI_IRQ_MSIX);
-
-	if (n < 0)
-		return n;
-
-	if (n != nvec)
-		return -EPERM;
+	err = enetc_alloc_msix_vectors(priv);
+	if (err)
+		return err;
 
 	/* # of tx rings per int vector */
 	v_tx_rings = priv->num_tx_rings / priv->bdr_int_num;

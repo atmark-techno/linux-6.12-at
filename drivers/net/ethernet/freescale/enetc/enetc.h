@@ -533,6 +533,7 @@ u32 enetc_port_mac_rd(struct enetc_si *si, u32 reg);
 void enetc_port_mac_wr(struct enetc_si *si, u32 reg, u32 val);
 int enetc_pci_probe(struct pci_dev *pdev, const char *name, int sizeof_priv);
 void enetc_pci_remove(struct pci_dev *pdev);
+int enetc_alloc_msix_vectors(struct enetc_ndev_priv *priv);
 int enetc_alloc_msix(struct enetc_ndev_priv *priv);
 void enetc_free_msix(struct enetc_ndev_priv *priv);
 void enetc_get_si_caps(struct enetc_si *si);
