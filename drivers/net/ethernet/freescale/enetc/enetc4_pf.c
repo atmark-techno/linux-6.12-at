@@ -1766,20 +1766,17 @@ static int __maybe_unused enetc4_pf_suspend(struct device *dev)
 	si = pci_get_drvdata(pdev);
 	priv = netdev_priv(si->ndev);
 
+	enetc4_sriov_suspend(pdev);
+
+	rtnl_lock();
+
 	if (!netif_running(si->ndev)) {
-		enetc4_sriov_suspend(pdev);
-		rtnl_lock();
 		enetc4_pf_power_down(si);
 		rtnl_unlock();
 		return 0;
 	}
 
-	if (netc_ierb_may_wakeonlan() == 0)
-		enetc4_sriov_suspend(pdev);
-
 	netif_device_detach(si->ndev);
-
-	rtnl_lock();
 	wol = !!priv->wolopts;
 	enetc_suspend(si->ndev, wol);
 
@@ -1797,6 +1794,7 @@ static int __maybe_unused enetc4_pf_suspend(struct device *dev)
 		phylink_suspend(priv->phylink, false);
 		enetc4_pf_power_down(si);
 	}
+
 	rtnl_unlock();
 
 	return 0;
@@ -1816,8 +1814,10 @@ static int __maybe_unused enetc4_pf_resume(struct device *dev)
 
 	si = pci_get_drvdata(pdev);
 	priv = netdev_priv(si->ndev);
+
+	rtnl_lock();
+
 	if (!netif_running(si->ndev)) {
-		rtnl_lock();
 		err = enetc4_pf_power_up(pdev, node);
 		rtnl_unlock();
 		if (err)
@@ -1825,8 +1825,6 @@ static int __maybe_unused enetc4_pf_resume(struct device *dev)
 
 		return enetc4_sriov_resume(pdev);
 	}
-
-	rtnl_lock();
 
 	wol = !!priv->wolopts;
 	if (netc_ierb_may_wakeonlan() > 0) {
@@ -1845,13 +1843,11 @@ static int __maybe_unused enetc4_pf_resume(struct device *dev)
 
 	phylink_resume(priv->phylink);
 	enetc_resume(si->ndev, wol);
+	netif_device_attach(si->ndev);
 
 	rtnl_unlock();
 
-	netif_device_attach(si->ndev);
-
-	if (netc_ierb_may_wakeonlan() == 0)
-		enetc4_sriov_resume(pdev);
+	enetc4_sriov_resume(pdev);
 
 	return 0;
 
