@@ -1753,7 +1753,7 @@ static void enetc4_pf_set_wol(struct enetc_si *si, bool en)
 	enetc_port_mac_wr(si, ENETC4_PLPMR, en ? PLPMR_WME : 0);
 }
 
-static int __maybe_unused enetc4_pf_suspend(struct device *dev)
+static int enetc4_pf_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct enetc_ndev_priv *priv;
@@ -1800,7 +1800,7 @@ static int __maybe_unused enetc4_pf_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused enetc4_pf_resume(struct device *dev)
+static int enetc4_pf_resume(struct device *dev)
 {
 	struct device_node *node = dev->of_node;
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -1856,14 +1856,15 @@ err_unlock_rtnl:
 	return err;
 }
 
-static SIMPLE_DEV_PM_OPS(enetc4_pf_pm_ops, enetc4_pf_suspend, enetc4_pf_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(enetc4_pf_pm_ops, enetc4_pf_suspend,
+				enetc4_pf_resume);
 
 static struct pci_driver enetc4_pf_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = enetc4_pf_id_table,
 	.probe = enetc4_pf_probe,
 	.remove = enetc4_pf_remove,
-	.driver.pm = &enetc4_pf_pm_ops,
+	.driver.pm = pm_ptr(&enetc4_pf_pm_ops),
 #ifdef CONFIG_PCI_IOV
 	.sriov_configure = enetc_sriov_configure,
 #endif
