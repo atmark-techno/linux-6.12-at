@@ -44,6 +44,7 @@ obj-$(CONFIG_SERIAL_FSL_LPUART)		+= fsl_lpuart.o
 obj-$(CONFIG_SERIAL_ICOM)		+= icom.o
 obj-$(CONFIG_SERIAL_IMX)		+= imx.o
 obj-$(CONFIG_SERIAL_IMX_EARLYCON)	+= imx_earlycon.o
+obj-$(CONFIG_SERIAL_IMX_RPMSG)		+= imx_rpmsg.o
 obj-$(CONFIG_SERIAL_IP22_ZILOG)		+= ip22zilog.o
 obj-$(CONFIG_SERIAL_JSM)		+= jsm/
 obj-$(CONFIG_SERIAL_LANTIQ)		+= lantiq.o
