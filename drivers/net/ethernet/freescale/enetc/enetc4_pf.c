@@ -489,13 +489,8 @@ static void enetc4_pl_mac_config(struct phylink_config *config,
 
 static void enetc4_set_port_speed(struct enetc_ndev_priv *priv, int speed)
 {
-	u32 old_speed = priv->speed;
-	u32 val;
+	u32 val = enetc_port_rd(&priv->si->hw, ENETC4_PCR);
 
-	if (speed == old_speed)
-		return;
-
-	val = enetc_port_rd(&priv->si->hw, ENETC4_PCR);
 	val &= ~PCR_PSPEED;
 
 	switch (speed) {
