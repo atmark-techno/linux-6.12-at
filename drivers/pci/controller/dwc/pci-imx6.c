@@ -298,14 +298,6 @@ static int imx95_pcie_init_phy(struct imx_pcie *imx_pcie)
 				   IMX95_PCIE_REF_CLKEN);
 	}
 
-	/* Force CLKREQ# low by override */
-	if (imx_pcie->supports_clkreq == false)
-		regmap_update_bits(imx_pcie->iomuxc_gpr,
-				   IMX95_PCIE_SS_RW_REG_1,
-				   IMX95_PCIE_CLKREQ_OVERRIDE_EN |
-				   IMX95_PCIE_CLKREQ_OVERRIDE_VAL,
-				   IMX95_PCIE_CLKREQ_OVERRIDE_EN |
-				   IMX95_PCIE_CLKREQ_OVERRIDE_VAL);
 	return 0;
 }
 
@@ -816,6 +808,22 @@ static int imx7d_pcie_enable_ref_clk(struct imx_pcie *imx_pcie, bool enable)
 	return 0;
 }
 
+static void  imx95_pcie_clkreq_override(struct imx_pcie *imx_pcie, bool enable)
+{
+	regmap_update_bits(imx_pcie->iomuxc_gpr, IMX95_PCIE_SS_RW_REG_1,
+			   IMX95_PCIE_CLKREQ_OVERRIDE_EN,
+			   enable ? IMX95_PCIE_CLKREQ_OVERRIDE_EN : 0);
+	regmap_update_bits(imx_pcie->iomuxc_gpr, IMX95_PCIE_SS_RW_REG_1,
+			   IMX95_PCIE_CLKREQ_OVERRIDE_VAL,
+			   enable ? IMX95_PCIE_CLKREQ_OVERRIDE_VAL : 0);
+}
+
+static int imx95_pcie_enable_ref_clk(struct imx_pcie *imx_pcie, bool enable)
+{
+	imx95_pcie_clkreq_override(imx_pcie, enable);
+	return 0;
+}
+
 static int imx_pcie_clk_enable(struct imx_pcie *imx_pcie)
 {
 	struct dw_pcie *pci = imx_pcie->pci;
@@ -1175,13 +1183,13 @@ static int imx_pcie_host_init(struct dw_pcie_rp *pp)
 	if (imx_pcie->drvdata->init_phy)
 		imx_pcie->drvdata->init_phy(imx_pcie);
 
-	imx_pcie_configure_type(imx_pcie);
-
 	ret = imx_pcie_clk_enable(imx_pcie);
 	if (ret) {
 		dev_err(dev, "unable to enable pcie clocks: %d\n", ret);
 		return ret;
 	}
+
+	imx_pcie_configure_type(imx_pcie);
 
 	if (imx_pcie->phy) {
 		ret = phy_init(imx_pcie->phy);
@@ -2186,6 +2194,7 @@ static const struct imx_pcie_drvdata drvdata[] = {
 		.init_phy = imx95_pcie_init_phy,
 		.core_reset = imx95_pcie_core_reset,
 		.post_config = imx95_pcie_post_config,
+		.enable_ref_clk = imx95_pcie_enable_ref_clk,
 	},
 	[IMX6Q_EP] = {
 		.variant = IMX6Q_EP,
@@ -2296,6 +2305,7 @@ static const struct imx_pcie_drvdata drvdata[] = {
 		.mode_mask[0] = IMX95_PCIE_DEVICE_TYPE,
 		.init_phy = imx95_pcie_init_phy,
 		.epc_features = &imx95_pcie_epc_features,
+		.enable_ref_clk = imx95_pcie_enable_ref_clk,
 		.mode = DW_PCIE_EP_TYPE,
 	},
 };
