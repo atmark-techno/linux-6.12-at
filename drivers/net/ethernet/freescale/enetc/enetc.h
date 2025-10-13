@@ -72,13 +72,16 @@ struct enetc_lso_t {
 #define ENETC_LSO_MAX_DATA_LEN		(256 * ENETC_1KB_SIZE)
 
 #define ENETC_RX_MAXFRM_SIZE	ENETC_MAC_MAXFRM_SIZE
-#define ENETC_RXB_TRUESIZE	2048 /* PAGE_SIZE >> 1 */
+#define ENETC_PAGE_SIZE(order)		(PAGE_SIZE << (order))
+#define ENETC_RXB_TRUESIZE(order)	(ENETC_PAGE_SIZE(order) >> 1)
 #define ENETC_RXB_PAD		NET_SKB_PAD /* add extra space if needed */
-#define ENETC_RXB_DMA_SIZE	\
-	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE) - ENETC_RXB_PAD)
-#define ENETC_RXB_DMA_SIZE_XDP	\
-	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE) - XDP_PACKET_HEADROOM)
-#define ENETC_RS_MAX_BYTES	(ENETC_RXB_DMA_SIZE * (MAX_SKB_FRAGS + 1))
+#define ENETC_RXB_DMA_SIZE(order)	\
+	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE(order)) - ENETC_RXB_PAD)
+#define ENETC_RXB_DMA_SIZE_XDP(order)	\
+	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE(order)) \
+	 - XDP_PACKET_HEADROOM)
+#define ENETC_RS_MAX_BYTES(order)	\
+	rounddown(65535, (u32)ENETC_RXB_DMA_SIZE(order))
 
 struct enetc_rx_swbd {
 	dma_addr_t dma;
@@ -165,6 +168,7 @@ struct enetc_bdr {
 	};
 	void __iomem *idr; /* Interrupt Detect Register pointer */
 
+	int page_order;
 	int buffer_offset;
 	struct enetc_xdp_data xdp;
 
@@ -519,6 +523,7 @@ struct enetc_ndev_priv {
 	 * and link state updates
 	 */
 	struct mutex		mm_lock;
+	int page_order;
 };
 
 #define ENETC_CBD(R, i)	(&(((struct enetc_cbd *)((R).bd_base))[i]))
@@ -568,6 +573,10 @@ void enetc_add_mac_addr_ht_filter(struct enetc_mac_filter *filter,
 int enetc_vid_hash_idx(unsigned int vid);
 void enetc_refresh_vlan_ht_filter(struct enetc_si *si);
 int enetc_restore_hw_config(struct enetc_si *si);
+
+int enetc_reconfigure(struct enetc_ndev_priv *priv, bool extended,
+		      int (*cb)(struct enetc_ndev_priv *priv, void *ctx),
+		      void *ctx);
 
 /* ethtool */
 void enetc_set_ethtool_ops(struct net_device *ndev);
