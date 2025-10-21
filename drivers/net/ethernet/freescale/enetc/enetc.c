@@ -3514,6 +3514,17 @@ static void enetc_setup_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
 	tx_ring->idr = hw->reg + ENETC_SITXIDR;
 }
 
+static u32 enetc_get_max_rsc_size(int page_order)
+{
+	u32 rx_buf_len = ENETC_RXB_DMA_SIZE(page_order);
+	u32 buff_cnt = ENETC_RBRSCR_SIZE / rx_buf_len;
+
+	if (buff_cnt > (MAX_SKB_FRAGS + 1))
+		return (MAX_SKB_FRAGS + 1) * rx_buf_len;
+
+	return buff_cnt * rx_buf_len;
+}
+
 static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring,
 			      bool extended)
 {
@@ -3572,8 +3583,7 @@ static void enetc_setup_rxbdr(struct enetc_hw *hw, struct enetc_bdr *rx_ring,
 	enetc_rxbdr_wr(hw, idx, ENETC_RBMR, rbmr);
 
 	if (rx_ring->ext_en && priv->active_offloads & ENETC_F_RSC)
-		rbrscr = ENETC_RBRSCR_EN |
-			 ENETC_RBRSCR_SIZE(ENETC_RS_MAX_BYTES(order));
+		rbrscr = ENETC_RBRSCR_EN | enetc_get_max_rsc_size(order);
 
 	enetc_rxbdr_wr(hw, idx, ENETC_RBRSCR, rbrscr);
 }

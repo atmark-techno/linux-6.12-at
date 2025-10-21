@@ -80,8 +80,6 @@ struct enetc_lso_t {
 #define ENETC_RXB_DMA_SIZE_XDP(order)	\
 	(SKB_WITH_OVERHEAD(ENETC_RXB_TRUESIZE(order)) \
 	 - XDP_PACKET_HEADROOM)
-#define ENETC_RS_MAX_BYTES(order)	\
-	rounddown(65535, (u32)ENETC_RXB_DMA_SIZE(order))
 
 struct enetc_rx_swbd {
 	dma_addr_t dma;
