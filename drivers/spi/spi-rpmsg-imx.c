@@ -315,6 +315,7 @@ static int spi_rpmsg_platform_probe(struct platform_device *pdev)
 	ctlr->dev.of_node = np;
 	ctlr->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	ctlr->mode_bits = 0;
+	ctlr->use_gpio_descriptors = true;
 
 	/* do not store it in bus_num to allow arbitrary alias */
 	devdata = spi_controller_get_devdata(ctlr);
