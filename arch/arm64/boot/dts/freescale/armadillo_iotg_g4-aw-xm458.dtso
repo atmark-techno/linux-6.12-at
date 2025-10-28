@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2022 Atmark Techno, Inc. All Rights Reserved.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+#include "imx8mp-pinfunc.h"
+
+&{/} {
+	reg_disable2: regulator-disable2 {
+		compatible = "regulator-fixed";
+		regulator-name = "W_DISABLE2";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio_expander 3 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+	};
+};
+
+// wlan itself is automatically probed from PCI and is
+// configured in armadillo_iotg_g4.dts directly
+&uart1 {
+	// pinctrl and status already set in default console
+	bluetooth {
+		compatible = "nxp,88w8987-bt";
+		fw-init-baudrate = <3000000>;
+		max-speed = <3000000>;
+		vcc-supply = <&reg_disable2>;
+		btnxpuart,required-netdev = "mlan0";
+	};
+};

@@ -3,13 +3,18 @@
  * Copyright 2021 NXP
  */
 
+#include "imx8ulp-pinfunc-m33.h"
+
 / {
 	aliases {
 		gpio0 = &rpmsg_gpioa;
 		gpio1 = &rpmsg_gpiob;
+		gpio2 = &rpmsg_gpioc;
 		i2c0 = &i2c_rpbus_0;
 		i2c1 = &i2c_rpbus_1;
+		i2c2 = &i2c_rpbus_2;
 		pwm0 = &tpm_rpchip_0;
+		pwm1 = &tpm_rpchip_1;
 	};
 
 	wm8960_mclk: wm8960-mclk {
@@ -19,7 +24,7 @@
 		#clock-cells = <0>;
 	};
 
-	cm33: remoteproc-cm33 {
+	cm33: imx8ulp-cm33 {
 		compatible = "fsl,imx8ulp-cm33";
 		status = "disabled";
 	};
@@ -34,37 +39,75 @@
 		status = "disabled";
 	};
 
+	i2c_rpbus_2: i2c-rpbus-2 {
+		compatible = "fsl,i2c-rpbus-v2";
+		status = "disabled";
+	};
+
 	rpmsg_gpioa: gpio-rpbus-0 {
 		compatible = "fsl,imx-rpmsg-gpio";
 		port_idx = <0>;
+		gpio-count = <25>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		#interrupt-cells = <2>;
 		interrupt-controller;
 		interrupt-parent = <&rpmsg_gpioa>;
 		status = "okay";
+		gpioa_iomuxc: pinctrl {
+		};
 	};
 
 	rpmsg_gpiob: gpio-rpbus-1 {
 		compatible = "fsl,imx-rpmsg-gpio";
 		port_idx = <1>;
+		gpio-count = <16>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		#interrupt-cells = <2>;
 		interrupt-controller;
 		interrupt-parent = <&rpmsg_gpiob>;
 		status = "okay";
+		gpiob_iomuxc: pinctrl {
+		};
 	};
 
-	tpm_rpchip_0: pwm {
+	rpmsg_gpioc: gpio-rpbus-2 {
+		compatible = "fsl,imx-rpmsg-gpio";
+		port_idx = <2>;
+		gpio-count = <24>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		interrupt-parent = <&rpmsg_gpioc>;
+		status = "okay";
+		gpioc_iomuxc: pinctrl {
+		};
+	};
+
+	tpm_rpchip_0: pwm@0 {
 		compatible = "fsl,pwm-rpchip";
 		#pwm-cells = <3>;
 		fsl,pwm-channel-number = <6>;
 		status = "disabled";
 	};
 
+	tpm_rpchip_1: pwm@1 {
+		compatible = "fsl,pwm-rpchip";
+		#pwm-cells = <3>;
+		fsl,pwm-channel-number = <2>;
+		status = "disabled";
+	};
+
 	rpmsg_sensor: rpmsg-sensor {
 		compatible = "nxp,rpmsg-iio-pedometer";
-		status = "okay";
+		status = "disabled";
 	};
+};
+
+&wdog3 {
+	/* prefer wdog over rpmsg by default. This one does not
+	 * allow restarting m33 core so is useless in practice. */
+	status = "disabled";
 };

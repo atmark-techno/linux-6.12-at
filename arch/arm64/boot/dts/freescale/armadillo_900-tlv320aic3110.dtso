@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2025 Atmark Techno, Inc. All Rights Reserved.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "imx8ulp-pinfunc-m33.h"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/sound/tlv320aic31xx.h>
+
+/*
+ * Connections:
+ *   PTC17_I2S1_RXD0	TLV320AIC3110_4(DOUT)
+ *   PTC20_I2S1_TXD0	TLV320AIC3110_5(DIN)
+ *   PTC21_I2S1_TX_BCLK	TLV320AIC3110_7(BCLK)
+ *   PTC22_I2S1_TX_FS	TLV320AIC3110_6(WCLK)
+ *   PTC23_I2S1_MCLK	TLV320AIC3110_8(MCLK)
+ *   PTC16_PTC16	TLV320AIC3110_31(RESET_N)
+ */
+
+&{/} {
+	clk_dummy: clock-dummy {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12000000>;
+		clock-output-names = "clk_dummy";
+	};
+
+	rpmsg_audio: rpmsg_audio {
+		compatible = "fsl,imx8ulp-rpmsg-audio";
+		model = "tlv320aic3110-audio";
+		sai_index = <SAI1>;
+		fsl,rpmsg-out;
+		fsl,rpmsg-in;
+		audio-codec = <&tlv320aic3110>;
+		memory-region = <&audio_reserved>;
+		audio-routing =
+			"MIC1LP", "Mic Jack",
+			"MIC1RP", "Mic Jack",
+			"MIC1LP", "MICBIAS",
+			"MIC1RP", "MICBIAS",
+		        "Headphone Jack", "HPL",
+		        "Headphone Jack", "HPR",
+		        "Speaker Left", "SPL",
+		        "Speaker Right", "SPR";
+		status = "okay";
+	};
+
+	reg_dummy_5v: regulator-dummy_5v {
+		compatible = "regulator-fixed";
+		regulator-name = "dummy";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_dummy_1p8v: regulator-dummy_1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "dummy";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&{/reserved-memory} {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	audio_reserved: audio@a8500000 {
+		compatible = "shared-dma-pool";
+		no-map;
+		reg = <0 0xa8500000 0 0x100000>;
+	};
+};
+
+&lpi2c7 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	tlv320aic3110: tlv320aic3110@18 {
+		#sound-dai-cells = <0>;
+		compatible = "ti,tlv320aic3110";
+		reg = <0x18>;
+		status = "okay";
+
+		ai31xx-micbias-vg = <MICBIAS_2_0V>;
+
+		reset-gpios = <&rpmsg_gpioc 16 GPIO_ACTIVE_LOW>;
+
+		/* Regulators */
+		HPVDD-supply = <&reg_dummy_5v>;
+		SPRVDD-supply = <&reg_dummy_5v>;
+		SPLVDD-supply = <&reg_dummy_5v>;
+		AVDD-supply = <&reg_dummy_5v>;
+		IOVDD-supply = <&reg_dummy_1p8v>;
+		DVDD-supply = <&reg_dummy_1p8v>;
+
+		clocks = <&clk_dummy>;
+		clock-names = "mclk";
+	};
+};
+
+&gpioc_iomuxc {
+	sai1 {
+		imx-rpmsg,pins = <
+			IOMUXC_PTC17_I2S1_RXD0		0x0
+			IOMUXC_PTC20_I2S1_TXD0		IOMUXC_PCR_DSE_MASK
+			IOMUXC_PTC21_I2S1_TX_BCLK	IOMUXC_PCR_DSE_MASK
+			IOMUXC_PTC22_I2S1_TX_FS		IOMUXC_PCR_DSE_MASK
+			IOMUXC_PTC23_I2S1_MCLK		(IOMUXC_PCR_OBE_MASK | IOMUXC_PCR_DSE_MASK)
+		>;
+	};
+
+	codec {
+		imx-rpmsg,pins = <
+			IOMUXC_PTC16_PTC16		0x0
+		>;
+	};
+};

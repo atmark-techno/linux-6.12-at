@@ -265,6 +265,28 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mp-frdm-rpmsg.dtb
 imx8mp-frdm-waveshare-7inch-c-panel-dtbs := imx8mp-frdm.dtb imx8mp-frdm-waveshare-7inch-c-panel.dtbo
 dtb-${CONFIG_ARCH_MXC} += imx8mp-frdm-waveshare-7inch-c-panel.dtb
 
+armadillo_iotg_g4_all-dtbs = armadillo_iotg_g4.dtb \
+			     armadillo_iotg_g4-at-dtweb.dtbo \
+			     armadillo_iotg_g4-nousb.dtbo \
+			     armadillo_iotg_g4-sw1-wakeup.dtbo \
+			     armadillo_iotg_g4-con10-arducam.dtbo \
+			     armadillo_iotg_g4-con10-imx219.dtbo \
+			     armadillo_iotg_g4-con10-ox01f10.dtbo \
+			     armadillo_iotg_g4-con10-thcv24xa-ox01f10.dtbo \
+			     armadillo_iotg_g4-con10-og01h1b.dtbo \
+			     armadillo_iotg_g4-lte-ext-board.dtbo \
+			     armadillo_iotg_g4-aw-xm458.dtbo \
+			     armadillo_iotg_g4-high-g0-es-ext-board.dtbo \
+			     armadillo_iotg_g4-customize.dtbo \
+			     armadillo_iotg_g4-rpmsg.dtbo
+			     # does not apply
+			     # armadillo_iotg_g4-high-g0-no-wireless.dtbo
+dtb-$(CONFIG_ARCH_MXC) += armadillo_iotg_g4_all.dtb
+
+high-g1-es1-all-dtbs = high-g1-es1.dtb high-g1-es1-lbes5pl2el.dtbo \
+		       high-g1-es1-em05-g.dtbo
+dtb-$(CONFIG_ARCH_MXC) += high-g1-es1-all.dtb
+
 dtb-$(CONFIG_ARCH_MXC) += imx8mq-evk.dtb imx8mq-evk-rpmsg.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mq-evk.dtb imx8mq-evk-rpmsg.dtb imx8mq-evk-pcie1-m2.dtb imx8mq-evk-usd-wifi.dtb \
 			  imx8mq-evk-usdhc2-m2.dtb
@@ -401,6 +423,25 @@ dtb-$(CONFIG_ARCH_MXC) += imx8ulp-evk.dtb imx8ulp-evk-lpspi-slave.dtb \
 			  imx8ulp-9x9-evk-i3c.dtb imx8ulp-9x9-evk-sof-btsco.dtb \
 			  imx8ulp-evk-lpa.dtb imx8ulp-9x9-evk-lpa.dtb \
 			  imx8ulp-evk-tpm.dtb imx8ulp-9x9-evk-tpm.dtb
+
+# DTBO need explicit -@ if symbols are used in further dts
+DTC_FLAGS_armadillo_iotg_a9e := -@
+DTC_FLAGS_armadillo_900-evaboard := -@
+armadillo_900-all-dtbs = armadillo_900.dtb \
+			 armadillo_900-customize.dtbo \
+			 armadillo_900-usdhc2-alwayson.dtbo \
+			 armadillo_900-evaboard.dtbo \
+			 armadillo_900-evaboard-con9-ox01f10.dtbo \
+			 armadillo_900-tlv320aic3110.dtbo \
+			 armadillo_iotg_a9e.dtbo \
+			 armadillo_iotg_a9e-at-dtweb.dtbo \
+			 armadillo_iotg_a9e-lbes5pl2el.dtbo \
+			 armadillo_iotg_a9e-nousb.dtbo \
+			 armadillo_iotg_a9e-sim7672.dtbo \
+			 armadillo_iotg_a9e-stdwn-ind-con10-pin26.dtbo \
+			 armadillo_iotg_a9e-stdwn-ind-do1.dtbo
+dtb-$(CONFIG_ARCH_MXC) += armadillo_900-all.dtb
+
 dtb-$(CONFIG_ARCH_MXC) += imx8dxl-evk.dtb \
 			  imx8dxl-evk-enet0.dtb imx8dxl-evk-enet0-tja1100.dtb \
 			  imx8dxl-evk-pcie-ep.dtb \
