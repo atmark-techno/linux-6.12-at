@@ -368,6 +368,8 @@
 			cgc1: clock-controller@292c0000 {
 				compatible = "fsl,imx8ulp-cgc1";
 				reg = <0x292c0000 0x10000>;
+				clocks = <&rosc>, <&frosc>, <&lposc>, <&sosc>;
+				clock-names = "rosc", "frosc", "lposc", "sosc";
 				#clock-cells = <1>;
 				assigned-clocks = <&cgc1 IMX8ULP_CLK_SPLL3_PFD1_DIV1>;
 				assigned-clock-rates = <12288000>;

@@ -146,6 +146,7 @@ static int imx8ulp_pcc_reset_init(struct platform_device *pdev, void __iomem *ba
 static int imx8ulp_clk_cgc1_init(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **clks;
 	void __iomem *base;
@@ -159,6 +160,11 @@ static int imx8ulp_clk_cgc1_init(struct platform_device *pdev)
 	clks = clk_data->hws;
 
 	clks[IMX8ULP_CLK_DUMMY] = imx_clk_hw_fixed("dummy", 0);
+
+	clks[IMX8ULP_CLK_ROSC] = imx_get_clk_hw_by_name(np, "rosc");
+	clks[IMX8ULP_CLK_FROSC] = imx_get_clk_hw_by_name(np, "frosc");
+	clks[IMX8ULP_CLK_LPOSC] = imx_get_clk_hw_by_name(np, "lposc");
+	clks[IMX8ULP_CLK_SOSC] = imx_get_clk_hw_by_name(np, "sosc");
 
 	/* CGC1 */
 	base = devm_platform_ioremap_resource(pdev, 0);
