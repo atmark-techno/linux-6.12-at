@@ -574,8 +574,6 @@ static int lpi2c_imx_pio_xfer(struct lpi2c_imx_struct *lpi2c_imx,
 {
 	int ret;
 
-	reinit_completion(&lpi2c_imx->complete);
-
 	if (msg->flags & I2C_M_RD)
 		lpi2c_imx_read(lpi2c_imx, msg);
 	else
@@ -748,7 +746,6 @@ static int lpi2c_dma_submit(struct lpi2c_imx_struct *lpi2c_imx)
 		return -EINVAL;
 	}
 
-	reinit_completion(&lpi2c_imx->complete);
 	desc->callback = lpi2c_dma_callback;
 	desc->callback_param = (void *)lpi2c_imx;
 
