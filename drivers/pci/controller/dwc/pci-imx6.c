@@ -1509,10 +1509,13 @@ static void imx_pcie_lut_restore(struct imx_pcie *imx_pcie)
 static int imx_pcie_suspend_noirq(struct device *dev)
 {
 	struct imx_pcie *imx_pcie = dev_get_drvdata(dev);
+	struct dw_pcie *pci = imx_pcie->pci;
 
 	if (!(imx_pcie->drvdata->flags & IMX_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
 
+	if (dw_pcie_link_up(pci))
+		imx_pcie->link_is_up = true;
 	if (imx_check_flag(imx_pcie, IMX_PCIE_FLAG_LINK_NOTIFY))
 		regmap_clear_bits(imx_pcie->iomuxc_gpr, IMX95_LINK_INT_CTRL_STS,
 				  IMX95_LINK_DOWN_INT_EN | IMX95_LINK_UP_INT_EN);
@@ -1538,6 +1541,7 @@ static int imx_pcie_resume_noirq(struct device *dev)
 {
 	int ret;
 	struct imx_pcie *imx_pcie = dev_get_drvdata(dev);
+	struct dw_pcie *pci = imx_pcie->pci;
 
 	if (!(imx_pcie->drvdata->flags & IMX_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
@@ -1568,8 +1572,18 @@ static int imx_pcie_resume_noirq(struct device *dev)
 			imx_pcie->pci->suspended = true;
 			ret = dw_pcie_resume_noirq(imx_pcie->pci);
 		}
-		if (imx_pcie->link_is_up == false && ret == -ETIMEDOUT)
-			ret = 0;
+		if (!dw_pcie_link_up(pci) && (ret == -ETIMEDOUT)) {
+			if (!imx_pcie->link_is_up) {
+				ret = 0;
+			} else {
+				dev_info(dev, "PCIe link is down\n");
+				imx_pcie->pci->suspended = true;
+				dw_pcie_stop_link(pci);
+				if (pci->pp.ops->deinit)
+					pci->pp.ops->deinit(&pci->pp);
+				ret = dw_pcie_resume_noirq(imx_pcie->pci);
+			}
+		}
 		if (ret)
 			return ret;
 	}
