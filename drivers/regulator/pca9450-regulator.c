@@ -17,6 +17,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/pca9450.h>
+#include <linux/pm_runtime.h>
 
 struct pc9450_dvs_config {
 	unsigned int run_reg; /* dvs0 */
@@ -951,6 +952,14 @@ static int pca9450_i2c_restart_handler(struct sys_off_data *data)
 {
 	struct pca9450 *pca9450 = data->cb_data;
 	struct i2c_client *i2c = container_of(pca9450->dev, struct i2c_client, dev);
+	struct device *dev = i2c->adapter->dev.parent;
+	int ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+                dev_warn(&i2c->dev, "could not resume i2c dev for PMIC reset: %d\n", ret);
+		return 0;
+	}
 
 	dev_dbg(&i2c->dev, "Restarting device..\n");
 	if (i2c_smbus_write_byte_data(i2c, PCA9450_REG_SWRST, SW_RST_COMMAND) == 0) {
@@ -961,6 +970,8 @@ static int pca9450_i2c_restart_handler(struct sys_off_data *data)
 	} else {
 		dev_err(&i2c->dev, "Restart command failed\n");
 	}
+
+	pm_runtime_put(dev);
 
 	return 0;
 }
