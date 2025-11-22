@@ -118,8 +118,8 @@ static int imx8mp_hdmi_pavi_probe(struct platform_device *pdev)
 
 	pavi = devm_kzalloc(dev, sizeof(*pavi), GFP_KERNEL);
 	if (!pavi) {
-		dev_err(dev, "Can't allocate 'imx8mp pavi' structure\n");
-		return -ENOMEM;
+		return dev_err_probe(dev, -ENOMEM,
+				     "Can't allocate 'imx8mp pavi' structure\n");
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -131,10 +131,8 @@ static int imx8mp_hdmi_pavi_probe(struct platform_device *pdev)
 		return PTR_ERR(pavi->base);
 
 	pavi->clk_apb = devm_clk_get(dev, NULL);
-	if (IS_ERR(pavi->clk_apb)) {
-		dev_err(dev, "No pai clock get\n");
-		return -EPROBE_DEFER;
-	}
+	if (IS_ERR(pavi->clk_apb))
+		return dev_err_probe(dev, -EPROBE_DEFER, "No pai clock get\n");
 
 	platform_set_drvdata(pdev, pavi);
 
