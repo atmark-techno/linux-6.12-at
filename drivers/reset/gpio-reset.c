@@ -110,6 +110,7 @@ static int gpio_reset_probe(struct platform_device *pdev)
 	struct gpio_reset_data *drvdata;
 	enum gpiod_flags flags;
 	bool initially_in_reset;
+	const char *name;
 	int ret;
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
@@ -134,6 +135,11 @@ static int gpio_reset_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+
+	name = of_node_full_name(np);
+	ret = gpiod_set_consumer_name(drvdata->gpiod, name);
+	if (ret)
+		return ret;
 
 	ret = of_property_read_u32(np, "reset-delay-us", &drvdata->delay_us);
 	if (ret < 0)
