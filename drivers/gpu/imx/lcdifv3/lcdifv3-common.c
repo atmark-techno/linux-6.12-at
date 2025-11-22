@@ -626,7 +626,6 @@ static void imx_lcdifv3_of_parse_thres(struct lcdifv3_soc *lcdifv3)
 
 static int imx_lcdifv3_probe(struct platform_device *pdev)
 {
-	int ret;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct lcdifv3_soc *lcdifv3;
@@ -636,8 +635,8 @@ static int imx_lcdifv3_probe(struct platform_device *pdev)
 
 	lcdifv3 = devm_kzalloc(dev, sizeof(*lcdifv3), GFP_KERNEL);
 	if (!lcdifv3) {
-		dev_err(dev, "Can't allocate 'lcdifv3_soc' structure\n");
-		return -ENOMEM;
+		return dev_err_probe(dev, -ENOMEM,
+				     "Can't allocate 'lcdifv3_soc' structure\n");
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -645,16 +644,13 @@ static int imx_lcdifv3_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	lcdifv3->irq = platform_get_irq(pdev, 0);
-	if (lcdifv3->irq < 0) {
-		dev_err(dev, "No irq get, ret=%d\n", lcdifv3->irq);
-		return lcdifv3->irq;
-	}
+	if (lcdifv3->irq < 0)
+		return dev_err_probe(dev, lcdifv3->irq, "No irq get\n");
 
 	lcdifv3->clk_pix = devm_clk_get(dev, "pix");
 	if (IS_ERR(lcdifv3->clk_pix)) {
-		ret = PTR_ERR(lcdifv3->clk_pix);
-		dev_err(dev, "No pix clock get: %d\n", ret);
-		return ret;
+		return dev_err_probe(dev, PTR_ERR(lcdifv3->clk_pix),
+				     "No pix clock get\n");
 	}
 
 	lcdifv3->clk_disp_axi = devm_clk_get(dev, "disp-axi");
@@ -672,9 +668,8 @@ static int imx_lcdifv3_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(np, "fsl,imx93-lcdif")) {
 		lcdifv3->gpr = syscon_regmap_lookup_by_phandle(np, "fsl,gpr");
 		if (IS_ERR(lcdifv3->gpr)) {
-			ret = PTR_ERR(lcdifv3->gpr);
-			dev_err(dev, "failed to get gpr: %d\n", ret);
-			return ret;
+			return dev_err_probe(dev, PTR_ERR(lcdifv3->gpr),
+					     "failed to get gpr\n");
 		}
 	}
 
