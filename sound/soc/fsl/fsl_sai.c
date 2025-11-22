@@ -1420,8 +1420,8 @@ static int fsl_sai_probe(struct platform_device *pdev)
 
 	sai->regmap = devm_regmap_init_mmio(dev, base, &fsl_sai_regmap_config);
 	if (IS_ERR(sai->regmap)) {
-		dev_err(dev, "regmap init failed\n");
-		return PTR_ERR(sai->regmap);
+		return dev_err_probe(dev, PTR_ERR(sai->regmap),
+				     "regmap init failed\n");
 	}
 
 	sai->bus_clk = devm_clk_get(dev, "bus");
@@ -1429,10 +1429,8 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	if (IS_ERR(sai->bus_clk) && PTR_ERR(sai->bus_clk) != -EPROBE_DEFER)
 		sai->bus_clk = devm_clk_get(dev, "sai");
 	if (IS_ERR(sai->bus_clk)) {
-		dev_err(dev, "failed to get bus clock: %ld\n",
-				PTR_ERR(sai->bus_clk));
-		/* -EPROBE_DEFER */
-		return PTR_ERR(sai->bus_clk);
+		return dev_err_probe(dev, PTR_ERR(sai->bus_clk),
+				     "failed to get bus clock\n");
 	}
 
 	for (i = 1; i < FSL_SAI_MCLK_MAX; i++) {
@@ -1482,8 +1480,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	/* read dataline mask for rx and tx*/
 	ret = fsl_sai_read_dlcfg(sai);
 	if (ret < 0) {
-		dev_err(dev, "failed to read dlcfg %d\n", ret);
-		return ret;
+		return dev_err_probe(dev, ret, "failed to read dlcfg\n");
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -1493,8 +1490,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, irq, fsl_sai_isr, IRQF_SHARED,
 			       np->name, sai);
 	if (ret) {
-		dev_err(dev, "failed to claim irq %u\n", irq);
-		return ret;
+		return dev_err_probe(dev, ret, "failed to claim irq %u\n", irq);
 	}
 
 	memcpy(&sai->cpu_dai_drv, fsl_sai_dai_template,
@@ -1510,8 +1506,8 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	if (of_property_read_bool(np, "fsl,sai-synchronous-rx") &&
 	    of_property_read_bool(np, "fsl,sai-asynchronous")) {
 		/* error out if both synchronous and asynchronous are present */
-		dev_err(dev, "invalid binding for synchronous mode\n");
-		return -EINVAL;
+		return dev_err_probe(dev, -EINVAL,
+				     "invalid binding for synchronous mode\n");
 	}
 
 	if (of_property_read_bool(np, "fsl,sai-synchronous-rx")) {
@@ -1533,8 +1529,8 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	    of_device_is_compatible(np, "fsl,imx6ul-sai")) {
 		gpr = syscon_regmap_lookup_by_compatible("fsl,imx6ul-iomuxc-gpr");
 		if (IS_ERR(gpr)) {
-			dev_err(dev, "cannot find iomuxc registers\n");
-			return PTR_ERR(gpr);
+			return dev_err_probe(dev, PTR_ERR(gpr),
+					     "cannot find iomuxc registers\n");
 		}
 
 		index = of_alias_get_id(np, "sai");
