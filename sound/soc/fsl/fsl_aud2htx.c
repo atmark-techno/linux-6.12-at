@@ -203,8 +203,8 @@ static int fsl_aud2htx_probe(struct platform_device *pdev)
 	aud2htx->regmap = devm_regmap_init_mmio(&pdev->dev, regs,
 						&fsl_aud2htx_regmap_config);
 	if (IS_ERR(aud2htx->regmap)) {
-		dev_err(&pdev->dev, "failed to init regmap");
-		return PTR_ERR(aud2htx->regmap);
+		return dev_err_probe(&pdev->dev, PTR_ERR(aud2htx->regmap),
+				     "failed to init regmap");
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -214,14 +214,14 @@ static int fsl_aud2htx_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, fsl_aud2htx_isr, 0,
 			       dev_name(&pdev->dev), aud2htx);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to claim irq %u: %d\n", irq, ret);
-		return ret;
+		return dev_err_probe(&pdev->dev, ret,
+				     "failed to claim irq %u\n", irq);
 	}
 
 	aud2htx->bus_clk = devm_clk_get(&pdev->dev, "bus");
 	if (IS_ERR(aud2htx->bus_clk)) {
-		dev_err(&pdev->dev, "failed to get mem clock\n");
-		return PTR_ERR(aud2htx->bus_clk);
+		return dev_err_probe(&pdev->dev, PTR_ERR(aud2htx->bus_clk),
+				     "failed to get mem clock\n");
 	}
 
 	aud2htx->dma_params_tx.chan_name = "tx";
@@ -239,18 +239,18 @@ static int fsl_aud2htx_probe(struct platform_device *pdev)
 	 */
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to pcm register\n");
 		pm_runtime_disable(&pdev->dev);
-		return ret;
+		return dev_err_probe(&pdev->dev, ret,
+				     "failed to pcm register\n");
 	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &fsl_aud2htx_component,
 					      &fsl_aud2htx_dai, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register ASoC DAI\n");
 		pm_runtime_disable(&pdev->dev);
-		return ret;
+		return dev_err_probe(&pdev->dev, ret,
+				     "failed to register ASoC DAI\n");
 	}
 
 	return ret;
