@@ -35,6 +35,10 @@
 #define MII_DP83822_GENCFG	0x465
 #define MII_DP83822_SOR1	0x467
 
+/* DP83825 specific registers */
+#define MII_DP83825_DAC_CFG0	0x30b
+#define MII_DP83825_DAC_CFG1	0x30c
+
 /* DP83826 specific registers */
 #define MII_DP83826_VOD_CFG1	0x30b
 #define MII_DP83826_VOD_CFG2	0x30c
@@ -116,6 +120,12 @@
 #define DP83822_COL_SHIFT	10
 #define DP83822_RX_ER_STR_MASK	GENMASK(9, 8)
 #define DP83822_RX_ER_SHIFT	8
+
+/* DP83825: DAC_CFG0 & DAC_CFG1 */
+#define DP83825_DAC_CFG0_MINUS_MASK	GENMASK(11, 6)
+#define DP83825_DAC_CFG1_PLUS_MASK	GENMASK(5, 0)
+#define DP83825_CFG_DAC_MINUS_DEFAULT	0x30
+#define DP83825_CFG_DAC_PLUS_DEFAULT	0x20
 
 /* DP83826: VOD_CFG1 & VOD_CFG2 */
 #define DP83826_VOD_CFG1_MINUS_MDIX_MASK	GENMASK(13, 12)
@@ -588,11 +598,28 @@ static int dp83826_config_init(struct phy_device *phydev)
 static int dp83825_config_init(struct phy_device *phydev)
 {
 	struct dp83822_private *dp83822 = phydev->priv;
+	u16 val;
 	int ret;
 
 	ret = dp8382x_config_rmii_mode(phydev);
 	if (ret)
 		return ret;
+
+	if (dp83822->cfg_dac_minus != DP83825_CFG_DAC_MINUS_DEFAULT) {
+		val = FIELD_PREP(DP83825_DAC_CFG0_MINUS_MASK, dp83822->cfg_dac_minus);
+		ret = phy_modify_mmd(phydev, DP83822_DEVADDR, MII_DP83825_DAC_CFG0,
+				     DP83825_DAC_CFG0_MINUS_MASK, val);
+		if (ret)
+			return ret;
+	}
+
+	if (dp83822->cfg_dac_plus != DP83825_CFG_DAC_PLUS_DEFAULT) {
+		val = FIELD_PREP(DP83825_DAC_CFG1_PLUS_MASK, dp83822->cfg_dac_plus);
+		ret = phy_modify_mmd(phydev, DP83822_DEVADDR, MII_DP83825_DAC_CFG1,
+				     DP83825_DAC_CFG1_PLUS_MASK, val);
+		if (ret)
+			return ret;
+	}
 
 	return dp83822_config_wol(phydev, &dp83822->wol);
 }
@@ -628,6 +655,21 @@ static int dp83822_of_init(struct phy_device *phydev)
 	return 0;
 }
 
+static void dp83825_of_init(struct phy_device *phydev)
+{
+	struct dp83822_private *dp83822 = phydev->priv;
+	struct device *dev = &phydev->mdio.dev;
+	u32 val;
+
+	dp83822->cfg_dac_minus = DP83825_CFG_DAC_MINUS_DEFAULT;
+	if (!device_property_read_u32(dev, "ti,cfg-dac-minus-one-val", &val))
+		dp83822->cfg_dac_minus = val;
+
+	dp83822->cfg_dac_plus = DP83825_CFG_DAC_PLUS_DEFAULT;
+	if (!device_property_read_u32(dev, "ti,cfg-dac-plus-one-val", &val))
+		dp83822->cfg_dac_plus = val;
+}
+
 static int dp83826_to_dac_minus_one_regval(int percent)
 {
 	int tmp = DP83826_CFG_DAC_PERCENT_DEFAULT - percent;
@@ -660,6 +702,10 @@ static void dp83826_of_init(struct phy_device *phydev)
 static int dp83822_of_init(struct phy_device *phydev)
 {
 	return 0;
+}
+
+static void dp83825_of_init(struct phy_device *phydev)
+{
 }
 
 static void dp83826_of_init(struct phy_device *phydev)
@@ -731,6 +777,19 @@ static int dp83822_probe(struct phy_device *phydev)
 	return 0;
 }
 
+static int dp83825_probe(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = dp8382x_probe(phydev);
+	if (ret)
+		return ret;
+
+	dp83825_of_init(phydev);
+
+	return 0;
+}
+
 static int dp83826_probe(struct phy_device *phydev)
 {
 	int ret;
@@ -792,7 +851,7 @@ static int dp83822_resume(struct phy_device *phydev)
 		PHY_ID_MATCH_MODEL(_id),			\
 		.name		= (_name),			\
 		/* PHY_BASIC_FEATURES */			\
-		.probe          = dp8382x_probe,		\
+		.probe          = dp83825_probe,		\
 		.soft_reset	= dp83822_phy_reset,		\
 		.config_init	= dp83825_config_init,		\
 		.get_wol = dp83822_get_wol,			\

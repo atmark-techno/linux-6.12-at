@@ -62,6 +62,20 @@ properties:
        for the PHY.  The internal delay for the PHY is fixed to 3.5ns relative
        to transmit data.
 
+  ti,cfg-dac-minus-one-val:
+    description: |
+       DP83825 PHY only.
+       An immediate value is written to bits [11:6] of the
+       cfg_dac_minus_one_val field in the DAC_CFG_0 register.
+    default: 0x30
+
+  ti,cfg-dac-plus-one-val:
+    description: |
+       DP83825 PHY only.
+       An immediate value is written to bits [5:0] of the
+       cfg_dac_plus_one_val field in the DAC_CFG_1 register.
+    default: 0x20
+
   ti,cfg-dac-minus-one-bp:
     description: |
        DP83826 PHY only.
