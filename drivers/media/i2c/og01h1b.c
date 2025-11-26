@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2021 Intel Corporation
  */
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -6108,7 +6108,7 @@ static int og01h1b_get_pad_format(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		og01h1b_fill_pad_format(og01h1b, og01h1b->cur_mode, og01h1b->code,
@@ -6154,7 +6154,7 @@ static int og01h1b_set_pad_format(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		ret = og01h1b_update_controls(og01h1b, og01h1b->cur_mode, fmt);
@@ -6170,14 +6170,14 @@ static int og01h1b_set_pad_format(struct v4l2_subdev *sd,
 }
 
 /**
- * og01h1b_init_pad_cfg() - Initialize sub-device pad configuration
+ * og01h1b_init_pad_state() - Initialize sub-device pad configuration
  * @sd: pointer to og01h1b V4L2 sub-device structure
  * @sd_state: V4L2 sub-device configuration
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int og01h1b_init_pad_cfg(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *sd_state)
+static int og01h1b_init_pad_state(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state)
 {
 	struct og01h1b *og01h1b = to_og01h1b(sd);
 	struct v4l2_subdev_format fmt = { 0 };
@@ -6189,14 +6189,14 @@ static int og01h1b_init_pad_cfg(struct v4l2_subdev *sd,
 	return og01h1b_set_pad_format(sd, sd_state, &fmt);
 }
 
-static const struct v4l2_rect *
+static __maybe_unused const struct v4l2_rect *
 __og01h1b_get_pad_crop(struct og01h1b *og01h1b,
 		      struct v4l2_subdev_state *sd_state,
 		      unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&og01h1b->sd, sd_state, pad);
+		return v4l2_subdev_state_get_crop(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &og01h1b->cur_mode->crop;
 	}
@@ -6472,12 +6472,15 @@ static const struct v4l2_subdev_video_ops og01h1b_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops og01h1b_pad_ops = {
-	.init_cfg = og01h1b_init_pad_cfg,
 	.enum_mbus_code = og01h1b_enum_mbus_code,
 	.enum_frame_size = og01h1b_enum_frame_size,
 	.get_fmt = og01h1b_get_pad_format,
 	.set_fmt = og01h1b_set_pad_format,
 	.get_selection = og01h1b_get_selection,
+};
+
+static const struct v4l2_subdev_internal_ops og01h1b_internal_ops = {
+       .init_state     = og01h1b_init_pad_state,
 };
 
 static const struct v4l2_subdev_ops og01h1b_subdev_ops = {
@@ -6687,6 +6690,7 @@ static int og01h1b_probe(struct i2c_client *client)
 	
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&og01h1b->sd, client, &og01h1b_subdev_ops);
+	og01h1b->sd.internal_ops = &og01h1b_internal_ops;
 	v4l2_i2c_subdev_set_name(&og01h1b->sd, client,
 				 device_get_match_data(og01h1b->dev), NULL);
 
