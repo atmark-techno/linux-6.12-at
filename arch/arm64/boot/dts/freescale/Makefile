@@ -431,6 +431,7 @@ DTC_FLAGS_armadillo_900-evaboard := -@
 armadillo_900-all-dtbs = armadillo_900.dtb \
 			 armadillo_900-customize.dtbo \
 			 armadillo_900-usdhc2-alwayson.dtbo \
+			 armadillo_900-usdhc2-disabled.dtbo \
 			 armadillo_900-evaboard.dtbo \
 			 armadillo_900-evaboard-con9-ox01f10.dtbo \
 			 armadillo_900-tlv320aic3110.dtbo \
