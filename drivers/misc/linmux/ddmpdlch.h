@@ -489,6 +489,9 @@ void MP_PostSimpleUserMessage( MUX_INSTANCE_t *pMux, MP_EVENT_TYPE evnt, UINT8 d
 
 void MP_CheckResyncTimeOut( MUX_INSTANCE_t  *pMux );
 
+void MP_RxFraming( MUX_INSTANCE_t *pMux, UINT8 *pStart, UINT8 *pStop );
+void MP_RxFramingHdlc( MUX_INSTANCE_t *pMux, UINT8 *pStart, UINT8 *pStop );
+
 void MP_vUpdateTxQE_hdlc ( MUX_INSTANCE_t *pMux );
 
 

@@ -45,17 +45,17 @@
   #define STRBOOL(b)                  (b ? "true" : "false")
   #define STRPTR(p)                   (p ? p : "<NULL>")
 #else // TRACE_ENABLED
-  #define MUX_EXIT(f, ...)
-  #define MUXDBG(a, ...)
-  #define DBGPRINT(a, ...)
-  #define DBG_ENTER(a, ...)
-  #define DBG_LEAVE(a, ...)
-  #define MUXDBGHEX(a, Data, Len)
-  #define MUXDBGCRLF(a, T1, T2)
-  #define MUXDBGTERMIOS(a, p)
-  #define MUXDBGSERSTRUCT(a, p)
-  #define STRBOOL(b)
-  #define STRPTR(p)
+  #define MUX_EXIT(f, ...)		 do {} while (0)
+  #define MUXDBG(a, ...)		 do {} while (0)
+  #define DBGPRINT(a, ...)		 do {} while (0)
+  #define DBG_ENTER(a, ...)		 do {} while (0)
+  #define DBG_LEAVE(a, ...)		 do {} while (0)
+  #define MUXDBGHEX(a, Data, Len)	 do {} while (0)
+  #define MUXDBGCRLF(a, T1, T2)		 do {} while (0)
+  #define MUXDBGTERMIOS(a, p)		 do {} while (0)
+  #define MUXDBGSERSTRUCT(a, p)		 do {} while (0)
+  #define STRBOOL(b)			 do {} while (0)
+  #define STRPTR(p)			 do {} while (0)
 #endif // TRACE_ENABLED
 
 

@@ -49,7 +49,7 @@ endif
 
 ccflags-y += -DTTY_DEVNUM=$(CONFIG_LINMUX_TTY_MAJOR_DEVNUM)
 ccflags-y += -DFS_DEVNUM=$(CONFIG_LINMUX_FS_MAJOR_DEVNUM)
-ccflags-y += -DFS_DEVNAME='$(CONFIG_LINMUX_FS_DEVICE_NAME)'
+ccflags-y += -DFS_DEVNAME=\"$(CONFIG_LINMUX_FS_DEVICE_NAME)\"
 ccflags-y += -DCLIENT_MODE=$(client_mode)
 ccflags-y += -DTRACE_ENABLED=$(trace_enabled)
 ccflags-y += -DPWRMGMT_ENABLED=$(power_mgmt_enabled)

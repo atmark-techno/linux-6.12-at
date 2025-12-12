@@ -48,7 +48,7 @@
 // None.
 //
 //////////////////////////////////////////////////////////////////////////////
-void MuxEstablishResult(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, DWORD dwResult) {
+static void MuxEstablishResult(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, DWORD dwResult) {
   DBG_ENTER(ZONE_FCT_MUXCHAN, "Instance=%p, MuxChn=%p, Result=%d, Dlci=%d", dwMuxInstance, dwUserData, dwResult, dwDlci);
   ((PT_MUXCHAN)dwUserData)->m_dwStartStopResult = dwResult;
   oswrap_SetEvent(&((PT_MUXCHAN)dwUserData)->m_hStartStopEvent);
@@ -70,7 +70,7 @@ void MuxEstablishResult(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, DWO
 // None.
 //
 //////////////////////////////////////////////////////////////////////////////
-void MuxReleaseResult(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, DWORD dwResult) {
+static void MuxReleaseResult(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, DWORD dwResult) {
   DBG_ENTER(ZONE_FCT_MUXCHAN, "Instance=%p, MuxChn=%p, Result=%d, Dlci=%d", dwMuxInstance, dwUserData, dwResult, dwDlci);
   ((PT_MUXCHAN)dwUserData)->m_dwStartStopResult = dwResult;
   oswrap_SetEvent(&((PT_MUXCHAN)dwUserData)->m_hStartStopEvent);
@@ -93,7 +93,7 @@ void MuxReleaseResult(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, DWORD
 // None.
 //
 //////////////////////////////////////////////////////////////////////////////
-void MuxSendDataContinue(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, DWORD dwLen) {
+static void MuxSendDataContinue(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, DWORD dwLen) {
   DBG_ENTER(ZONE_FCT_MUXCHAN, "Instance=%p, MuxChn=%p, Len=%d, Dlci=%d", dwMuxInstance, dwUserData, dwLen, dwDlci);
   if (dwUserData) {
     oswrap_UpperPortContinueSending(&((PT_MUXCHAN)dwUserData)->m_UpperPort);
@@ -118,7 +118,7 @@ void MuxSendDataContinue(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, DW
 // The number of read bytes.
 //
 //////////////////////////////////////////////////////////////////////////////
-DWORD MuxReceiveData(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, PBYTE pData, DWORD dwLen, DWORD dwBytesInBuf) {
+static DWORD MuxReceiveData(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, PBYTE pData, DWORD dwLen, DWORD dwBytesInBuf) {
   PT_MUXCHAN pMuxChn = (PT_MUXCHAN)dwUserData;
   DWORD      dwWritten;
 
@@ -161,7 +161,7 @@ DWORD MuxReceiveData(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, PBYTE 
 // None.
 //
 //////////////////////////////////////////////////////////////////////////////
-void MuxReceiveV24Status(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, MUX_V24STATUS_t V24Status) {
+static void MuxReceiveV24Status(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, MUX_V24STATUS_t V24Status) {
   PT_MUXCHAN      pMuxChn = (PT_MUXCHAN)dwUserData;
   MUX_V24STATUS_t ModuleState;
   DWORD           dwChangedMask;
@@ -224,7 +224,7 @@ void MuxReceiveV24Status(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci, MU
 // None.
 //
 //////////////////////////////////////////////////////////////////////////////
-void MuxShutdown(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci) {
+static void MuxShutdown(DWORD dwMuxInstance, DWORD dwUserData, DWORD dwDlci) {
   PT_MUXCHAN pMuxChn = (PT_MUXCHAN)dwUserData;
   DBG_ENTER(ZONE_FCT_MUXCHAN, "Instance=%p, MuxChn=%p, Dlci=%d", dwMuxInstance, dwUserData, dwDlci);
   oswrap_WorkQueueQueueItem(pMuxChn->m_hWorkQueue, &pMuxChn->m_WorkQueueShutDown);
@@ -931,7 +931,7 @@ BOOL mc_Close(PT_MUXCHAN pMuxChn) {
 // The requested error code.
 //
 //////////////////////////////////////////////////////////////////////////////
-int mc_GetErrCodeOnStateUnlocked(PT_MUXCHAN pMuxChn) {
+static int mc_GetErrCodeOnStateUnlocked(PT_MUXCHAN pMuxChn) {
   int iRet;
   switch (pMuxChn->m_State) {
     case MUXCHN_OPEN   : iRet = 0;       break;

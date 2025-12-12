@@ -28,8 +28,7 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 
-#include "linmuxcfg.h"
-#include "baseport.h"
+#include "linmux.h"
 #include "muxdbg.h"
 
 //////////////////////////////////////////////////////////////////////////////
@@ -50,9 +49,6 @@ module_param_named(Ports, gPorts, ulong, 0);
 MODULE_PARM_DESC(Ports, "The default number of multiplexer ports");
 
 //////////////////////////////////////////////////////////////////////////////
-
-int mux_load_driver(unsigned int iInstance);
-void mux_unload_driver(unsigned int iInstance);
 
 static int mux_fs_open(struct inode *, struct file *);
 static int mux_fs_release(struct inode *, struct file *);
@@ -392,7 +388,7 @@ int mux_fs_init(void) {
         }
       }
       if (!iRet) {
-        linmuxcfg_class = class_create(THIS_MODULE, "linmuxcfg");
+        linmuxcfg_class = class_create("linmuxcfg");
         if (IS_ERR(linmuxcfg_class)) {
           DBGPRINT(ZONE_ERR, "Failed to create class");
           iRet = PTR_ERR(linmuxcfg_class);

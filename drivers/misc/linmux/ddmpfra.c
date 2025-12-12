@@ -152,7 +152,7 @@ static UINT32 MP_TxFraming
 }
 
 
-void MP_SendSyncFlag
+static void MP_SendSyncFlag
 (
     MUX_INSTANCE_t  *pMux
 )
@@ -171,7 +171,7 @@ void MP_ResetResync
     pMux->u32ResyncTickCount = 0;
 }
 
-void MP_SetResync
+static void MP_SetResync
 (
     MUX_INSTANCE_t  *pMux
 )
@@ -1320,7 +1320,7 @@ void MP_vUpdateRxQE
  *
  * ---------------------------------------------------------------------------
  */
-void MP_vUpdateTxQE_std
+static void MP_vUpdateTxQE_std
 (
     MUX_INSTANCE_t  *pMux
 )

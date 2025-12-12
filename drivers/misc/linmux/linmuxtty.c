@@ -24,6 +24,7 @@
 #include <linux/module.h>
 
 #include "linmux.h"
+#include "linmuxtty.h"
 
 #include "muxdbg.h"
 #include "os_wrap.h"
@@ -61,11 +62,11 @@ MODULE_DESCRIPTION("Module providing the THALES wireless modules multiplexer cap
 
 static int          mux_tty_open(struct tty_struct *tty, struct file * filp);
 static void         mux_tty_close(struct tty_struct *tty, struct file * filp);
-static int          mux_tty_write(struct tty_struct *tty, const unsigned char *buf, int count);
+static ssize_t      mux_tty_write(struct tty_struct *tty, const u8 *buf, size_t count);
 static int          mux_tty_put_char(struct tty_struct *tty, unsigned char ch);
 static void         mux_wait_until_sent(struct tty_struct *tty, int timeout);
 static void         mux_flush_buffer(struct tty_struct *tty);
-static void         mux_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios);
+static void         mux_tty_set_termios(struct tty_struct *tty, const struct ktermios *old_termios);
 static int          mux_tty_install(struct tty_driver *driver, struct tty_struct *tty);
 static void         mux_tty_cleanup(struct tty_struct *tty);
 static void         mux_tty_unthrottle(struct tty_struct *tty);
@@ -135,7 +136,7 @@ void mux_dev_release(struct device *dev);
 // None.
 //
 //////////////////////////////////////////////////////////////////////////////
-void release_global_tty_lock(void) {
+static void release_global_tty_lock(void) {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
   DBG_ENTER(ZONE_FCT_TTY_IFACE, "");
@@ -144,7 +145,7 @@ void release_global_tty_lock(void) {
 #endif // KERNEL_VERSION
 #endif // KERNEL_VERSION
 }
-void restore_global_tty_lock(void) {
+static void restore_global_tty_lock(void) {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
   DBG_ENTER(ZONE_FCT_TTY_IFACE, "");
@@ -250,7 +251,7 @@ static int mux_tty_ioctl(TTY_PARAMS, unsigned int cmd, unsigned long arg) {
             iRet = 0;
           }
           DBGPRINT(ZONE_FCT_TTY_IFACE, "mux_tty_ioctl(TIOCGSERIAL) -> %d", iRet);
-          if (iRet == 0) MUXDBGSERSTRUCT(ZONE_FCT_TTY_IFACE, &SerInfo);
+          MUXDBGSERSTRUCT(ZONE_FCT_TTY_IFACE, &SerInfo);
         }
         break;
       case TIOCSSERIAL: {
@@ -262,7 +263,7 @@ static int mux_tty_ioctl(TTY_PARAMS, unsigned int cmd, unsigned long arg) {
           iRet = -EFAULT;
         }
         DBGPRINT(ZONE_FCT_TTY_IFACE, "mux_tty_ioctl(TIOCSSERIAL) -> %d", iRet);
-        if (iRet == 0) MUXDBGSERSTRUCT(ZONE_FCT_TTY_IFACE, &SerInfo);
+        MUXDBGSERSTRUCT(ZONE_FCT_TTY_IFACE, &SerInfo);
         break;}
       case TIOCSERGETLSR: {
         // A UART's Line-Status-Register register holds the following information:
@@ -330,7 +331,7 @@ static int mux_tty_ioctl(TTY_PARAMS, unsigned int cmd, unsigned long arg) {
 // of an error.
 //
 //////////////////////////////////////////////////////////////////////////////
-static int mux_tty_write(struct tty_struct *tty, const unsigned char *buf, int count) {
+static ssize_t mux_tty_write(struct tty_struct *tty, const u8 *buf, size_t count) {
   int iRet;
   DBG_ENTER(ZONE_FCT_TTY_IFACE, "pTty=%p, Index=%d, pBuf=%p, Count=%d, pMuxChn=%p", tty, tty->index, buf, count, tty->driver_data);
   MUXDBGHEX(ZONE_RAW_DATA, (PBYTE)buf, count);
@@ -504,7 +505,7 @@ static void mux_tty_unthrottle(struct tty_struct *tty) {
 // None.
 //
 //////////////////////////////////////////////////////////////////////////////
-static void mux_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios) {
+static void mux_tty_set_termios(struct tty_struct *tty, const struct ktermios *old_termios) {
   DBG_ENTER(ZONE_FCT_TTY_IFACE, "pTty=%p, Index=%d, pOldTermios=%p, pMuxChn=%p", tty, tty->index, old_termios, tty->driver_data);
   mc_SetFlowCtrl(tty->driver_data, (C_CFLAG(tty) & CRTSCTS) ? TRUE : FALSE);
   DBG_LEAVE(ZONE_FCT_TTY_IFACE, "Index=%d, pMuxChn=%p", tty->index, tty->driver_data);
@@ -613,7 +614,7 @@ static int tty_init_termios_local(struct tty_struct *tty) {
 // None.
 //
 //////////////////////////////////////////////////////////////////////////////
-void CreateTtyPort(struct tty_struct *tty) {
+static void CreateTtyPort(struct tty_struct *tty) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
   DBG_ENTER(ZONE_FCT_TTY_IFACE, "pTty=%p, Index=%d, pMuxChn=%p", tty, tty->index, tty->driver_data);
   if (!tty->port) {
@@ -637,7 +638,7 @@ void CreateTtyPort(struct tty_struct *tty) {
 // None.
 //
 //////////////////////////////////////////////////////////////////////////////
-void DestroyTtyPort(struct tty_struct *tty) {
+static void DestroyTtyPort(struct tty_struct *tty) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
   DBG_ENTER(ZONE_FCT_TTY_IFACE, "pTty=%p, Index=%d, pMuxChn=%p", tty, tty->index, tty->driver_data);
   if (tty->port) {
@@ -926,11 +927,10 @@ int mux_serial_probe(struct platform_device *pdev)
   return result;
 }
 
-int mux_serial_remove(struct platform_device *pdev)
+void mux_serial_remove(struct platform_device *pdev)
 {
   mux_serial_destroy();
   DBGPRINT(ZONE_DRV_INIT, "*** Exit Cinterion Wireless Modules Serial Multiplex Client Driver ***");
-  return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////

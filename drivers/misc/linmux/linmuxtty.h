@@ -11,6 +11,8 @@
 //////////////////////////////////////////////////////////////////////////////
 
 int mux_serial_probe(struct platform_device *pdev);
-int mux_serial_remove(struct platform_device *pdev);
+void mux_serial_remove(struct platform_device *pdev);
+
+void mux_dev_release(struct device *dev);
 
 #endif // __LINMUXTTY_H

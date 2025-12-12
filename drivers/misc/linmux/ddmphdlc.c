@@ -35,7 +35,7 @@
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-void Hdlc_StartT1
+static void Hdlc_StartT1
 (
     DLCI_HDLC_t     *pHDLC
 )
@@ -48,7 +48,7 @@ void Hdlc_StartT1
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-void Hdlc_StartClearRejTimer
+static void Hdlc_StartClearRejTimer
 (
     DLCI_HDLC_t     *pHDLC
 )
@@ -61,7 +61,7 @@ void Hdlc_StartClearRejTimer
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-void Hdlc_StopClearRejTimer
+static void Hdlc_StopClearRejTimer
 (
     DLCI_HDLC_t     *pHDLC
 )
@@ -73,7 +73,7 @@ void Hdlc_StopClearRejTimer
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-void Hdlc_StopT1
+static void Hdlc_StopT1
 (
     DLCI_HDLC_t     *pHDLC
 )
@@ -85,7 +85,7 @@ void Hdlc_StopT1
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-eMP_HdlcEvent Hdlc_DecodeEvent
+static eMP_HdlcEvent Hdlc_DecodeEvent
 (
     UINT8           ucControlField,
     UINT8           *pN_S,
@@ -124,7 +124,7 @@ eMP_HdlcEvent Hdlc_DecodeEvent
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-BOOL Hdlc_IsValid_N_R
+static BOOL Hdlc_IsValid_N_R
 (
     DLCI_HDLC_t     *pHDLC
 )
@@ -164,7 +164,7 @@ BOOL Hdlc_IsValid_N_R
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-BOOL Hdlc_CanBeSent
+static BOOL Hdlc_CanBeSent
 (
     DLCI_HDLC_t     *pHDLC
 )
@@ -198,7 +198,7 @@ BOOL Hdlc_CanBeSent
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-void Hdlc_Inc_V_R
+static void Hdlc_Inc_V_R
 (
     DLCI_HDLC_t     *pHDLC
 )
@@ -213,7 +213,7 @@ void Hdlc_Inc_V_R
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-void Hdlc_Inc_V_S
+static void Hdlc_Inc_V_S
 (
     DLCI_HDLC_t     *pHDLC
 )
@@ -228,7 +228,7 @@ void Hdlc_Inc_V_S
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-void Hdlc_Retransmission
+static void Hdlc_Retransmission
 (
     DLCI_HDLC_t     *pHDLC
 )
@@ -247,7 +247,7 @@ void Hdlc_Retransmission
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-UINT32 Hdlc_SendFrame
+static UINT32 Hdlc_SendFrame
 (
     MUX_INSTANCE_t  *pMux,
     UINT8            ucDLCI,
@@ -360,7 +360,7 @@ UINT32 Hdlc_SendFrame
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-BOOL Hdlc_IsOwnReceiverBusy
+static BOOL Hdlc_IsOwnReceiverBusy
 (
     MUX_INSTANCE_t  *pMux,
     UINT8            ucDLCI
@@ -384,7 +384,7 @@ BOOL Hdlc_IsOwnReceiverBusy
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-void Hdlc_Send_RR
+static void Hdlc_Send_RR
 (
     MUX_INSTANCE_t  *pMux,
     UINT8            ucDLCI
@@ -397,7 +397,7 @@ void Hdlc_Send_RR
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-void Hdlc_Send_RNR
+static void Hdlc_Send_RNR
 (
     MUX_INSTANCE_t  *pMux,
     UINT8            ucDLCI
@@ -410,7 +410,7 @@ void Hdlc_Send_RNR
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-void Hdlc_Send_REJ
+static void Hdlc_Send_REJ
 (
     MUX_INSTANCE_t  *pMux,
     UINT8            ucDLCI
@@ -423,7 +423,7 @@ void Hdlc_Send_REJ
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-BOOL Hdlc_Handle_N_R
+static BOOL Hdlc_Handle_N_R
 (
     DLCI_HDLC_t     *pHDLC
 )
@@ -463,7 +463,7 @@ BOOL Hdlc_Handle_N_R
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-BOOL Hdlc_Handle_I_Frame
+static BOOL Hdlc_Handle_I_Frame
 (
     MUX_INSTANCE_t  *pMux,
     UINT8            ucDLCI
@@ -531,7 +531,7 @@ BOOL Hdlc_Handle_I_Frame
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-BOOL Hdlc_Handle_RR_Frame
+static BOOL Hdlc_Handle_RR_Frame
 (
     MUX_INSTANCE_t  *pMux,
     UINT8            ucDLCI
@@ -567,7 +567,7 @@ BOOL Hdlc_Handle_RR_Frame
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-BOOL Hdlc_Handle_RNR_Frame
+static BOOL Hdlc_Handle_RNR_Frame
 (
     MUX_INSTANCE_t  *pMux,
     UINT8            ucDLCI
@@ -588,7 +588,7 @@ BOOL Hdlc_Handle_RNR_Frame
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-BOOL Hdlc_Handle_REJ_Frame
+static BOOL Hdlc_Handle_REJ_Frame
 (
     MUX_INSTANCE_t  *pMux,
     UINT8            ucDLCI
@@ -629,7 +629,7 @@ BOOL Hdlc_Handle_REJ_Frame
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-void Hdlc_HandleT1
+static void Hdlc_HandleT1
 (
     DLCI_HDLC_t     *pHDLC
 )
@@ -644,7 +644,7 @@ void Hdlc_HandleT1
 //
 //
 //////////////////////////////////////////////////////////////////////////////
-void Hdlc_HandleTClearRej
+static void Hdlc_HandleTClearRej
 (
     DLCI_HDLC_t     *pHDLC
 )

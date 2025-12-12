@@ -115,7 +115,7 @@ static DWORD DLCI_ClearProp (
 }
 
 //////////////////////////////////////////////////////////////////////////////
-DWORD  Dlci_GetConnected (
+static DWORD  Dlci_GetConnected (
     pMUX_INSTANCE_t      pMux,
     DWORD                dwDLCI
 )
@@ -141,7 +141,7 @@ DWORD  Dlci_GetConnected (
 //============================================================================
 
 //////////////////////////////////////////////////////////////////////////////
-void Mux_Lock_cb (
+static void Mux_Lock_cb (
     pMUX_INSTANCE_t  pMux
 )
 {
@@ -151,7 +151,7 @@ void Mux_Lock_cb (
 }
 
 //////////////////////////////////////////////////////////////////////////////
-void Mux_Unlock_cb (
+static void Mux_Unlock_cb (
     pMUX_INSTANCE_t  pMux
 )
 {
@@ -365,7 +365,7 @@ void Mux_DLCIReceiceV24Status_cb (
 }
 
 //////////////////////////////////////////////////////////////////////////////
-void Mux_DLCIShutdown_cb (
+static void Mux_DLCIShutdown_cb (
     pMUX_INSTANCE_t  pMux,
     DWORD            dwDLCI
 )

@@ -20,11 +20,6 @@
 #include "ddmpiofunc.h"
 
 
-//***** Prototypes ***********************************************************
-void MP_RxFraming(MUX_INSTANCE_t *pMux, UINT8 *pStart, UINT8 *pStop);
-void MP_RxFramingHdlc(MUX_INSTANCE_t *pMux, UINT8 *pStart, UINT8 *pStop);
-
-
 //***** EXIT CODES ************************************************************
 #define MP_IO_WRONG_INSTANCE        0
 

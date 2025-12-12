@@ -16,6 +16,7 @@
 #include "global.h"
 #include "ddmpglob.h"
 #include "ddmpdlch.h"
+#include "ddmpiofunc.h"
 #include "mux_callback.h"
 #include "mux_interface.h"
 #include "mux_msgqueue.h"

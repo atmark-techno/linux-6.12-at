@@ -61,7 +61,7 @@
 \retval     FALSE no further data available
 \retval     != FALSE  new data available
 ******************************************************************************/
-BOOL MP_bTxAppDataAvail
+static BOOL MP_bTxAppDataAvail
 (
     MUX_INSTANCE_t  *pMux,
     UINT8            ucDlci
@@ -125,7 +125,7 @@ SAPI or other buffer) according to current channel rules, as packet length
 \retval     FALSE no further data available
 \retval     != FALSE  new data available
 ******************************************************************************/
-UINT8 MP_uiTxCreatePacket
+static UINT8 MP_uiTxCreatePacket
 (
     MUX_INSTANCE_t  *pMux,
     UINT8            ucDlci
