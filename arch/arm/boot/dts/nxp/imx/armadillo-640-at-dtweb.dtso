@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2018 Atmark Techno, Inc. All Rights Reserved.
+ */
+
+/dts-v1/;
+/plugin/;
+
+&uart5 {
+	status = "disabled";
+};
+
+#include "armadillo-640-expansion-interface.dtsi"

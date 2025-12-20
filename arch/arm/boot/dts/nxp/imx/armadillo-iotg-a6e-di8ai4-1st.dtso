@@ -1,0 +1,174 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2023 Atmark Techno, Inc. All Rights Reserved.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "imx6ull-pinfunc.h"
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+
+&{/} {
+	aliases {
+		/* Aliases are represented by a string to a full node path.
+		 * For overlays, specifying &adc2 will incorrectly result in a path
+		 * within a fragment, which is not fixed at apply time.
+		 * Specify the full path of the merged node directly.
+		 */
+		iio1 = "/soc/bus@2100000/i2c@21f8000/adc@49";
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		extreg_3v3: ext-regulator-3v3 {
+				compatible = "regulator-fixed";
+				regulator-name = "3V3";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+		};
+	};
+
+	ain-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_leds_ain>;
+
+		ain_power {
+			label = "AIN_POWER";
+			gpios = <&gpio4 27 GPIO_ACTIVE_HIGH>;
+			retain-state-shutdown;
+			retain-state-suspended;
+			default-state = "on";
+		};
+
+	};
+};
+
+&i2c4 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	adc2: adc@49 {
+		compatible = "ti,ads1115";
+		reg = <0x49>;
+		label = "di8ai4-1";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		#io-channel-cells = <1>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_adc2>;
+
+		interrupt-parent = <&gpio4>;
+		interrupts = <28 IRQ_TYPE_LEVEL_LOW>;
+
+		wakeup-source;
+
+		channel@4 {
+			reg = <4>;
+			ti,gain = <0>;
+			ti,datarate = <4>;
+		};
+
+		channel@5 {
+			reg = <5>;
+			ti,gain = <0>;
+			ti,datarate = <4>;
+		};
+
+		channel@6 {
+			reg = <6>;
+			ti,gain = <0>;
+			ti,datarate = <4>;
+		};
+
+		channel@7 {
+			reg = <7>;
+			ti,gain = <0>;
+			ti,datarate = <4>;
+		};
+	};
+
+	pi4ioe5v9554_1: gpio@27 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pi4ioe5v9554_1>;
+
+		compatible = "nxp,pca9554";
+		reg = <0x27>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		interrupt-parent = <&gpio3>;
+		interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
+
+		wakeup-source;
+	};
+};
+
+&adc1 {
+	label = "vin-di8ai4";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc1_vin>;
+	vref-supply = <&extreg_3v3>;
+	num-channels = <5>;
+	status = "okay";
+};
+
+&gpio1 {
+	di8ai4_eeprom_wp {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_di8ai4_eeprom_wp>;
+
+		gpio-hog;
+		gpios = <2 GPIO_ACTIVE_HIGH>;
+		line-name = "DI8AI4_EEPROM_WP";
+		input-low;
+	};
+};
+
+&iomuxc {
+	pinctrl_adc1_vin: adc1_vingrp {
+		fsl,pins = <
+			MX6UL_PAD_GPIO1_IO01__GPIO1_IO01	0xb0 /* VIN_MONITOR */
+		>;
+	};
+
+	pinctrl_adc2: adc2grp {
+		fsl,pins = <
+			MX6UL_PAD_CSI_DATA07__GPIO4_IO28	0x1b0b0 /* ADC_INT */
+		>;
+	};
+
+	pinctrl_pi4ioe5v9554_1: pi4ioe5v9554_1grp {
+		fsl,pins = <
+			MX6UL_PAD_LCD_DATA01__GPIO3_IO06	0x1b0b0 /* 9554 INT */
+		>;
+	};
+
+	pinctrl_gpio_leds_ain: gpio_leds_aingrp {
+		fsl,pins = <
+			MX6UL_PAD_CSI_DATA06__GPIO4_IO27	0x10	/* AIN_POWER */
+		>;
+	};
+
+	pinctrl_di8ai4_eeprom_wp: di8ai4_eeprom_wpgrp {
+		fsl,pins = <
+			MX6UL_PAD_GPIO1_IO02__GPIO1_IO02	0x10	/* AIDI_EEPROM_WP */
+		>;
+	};
+};
+
+&pi4ioe5v9554_1 {
+	gpio-line-names =
+		/* PI4IOE5V9554_1_00 - 03 */ "DI3", "DI4", "DI5", "DI6",
+		/* PI4IOE5V9554_1_04 - 07 */ "DI7", "DI8", "DI9", "DI10";
+};

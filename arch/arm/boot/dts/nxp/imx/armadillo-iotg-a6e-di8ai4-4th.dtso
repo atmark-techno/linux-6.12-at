@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2023 Atmark Techno, Inc. All Rights Reserved.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "imx6ull-pinfunc.h"
+#include <dt-bindings/interrupt-controller/irq.h>
+
+&{/} {
+	aliases {
+		/* Aliases are represented by a string to a full node path.
+		 * For overlays, specifying &adc5 will incorrectly result in a path
+		 * within a fragment, which is not fixed at apply time.
+		 * Specify the full path of the merged node directly.
+		 */
+		iio4 = "/soc/bus@2100000/i2c@21f8000/adc@4A";
+	};
+};
+
+&i2c4 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	adc5: adc@4A {
+		compatible = "ti,ads1115";
+		reg = <0x4A>;
+		label = "di8ai4-4";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		#io-channel-cells = <1>;
+
+		interrupt-parent = <&gpio4>;
+		interrupts = <28 IRQ_TYPE_LEVEL_LOW>;
+
+		channel@4 {
+			reg = <4>;
+			ti,gain = <0>;
+			ti,datarate = <4>;
+		};
+
+		channel@5 {
+			reg = <5>;
+			ti,gain = <0>;
+			ti,datarate = <4>;
+		};
+
+		channel@6 {
+			reg = <6>;
+			ti,gain = <0>;
+			ti,datarate = <4>;
+		};
+
+		channel@7 {
+			reg = <7>;
+			ti,gain = <0>;
+			ti,datarate = <4>;
+		};
+	};
+
+	pi4ioe5v9554_4: gpio@23 {
+		compatible = "nxp,pca9554";
+		reg = <0x23>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&pi4ioe5v9554_4 {
+	gpio-line-names =
+		/* PI4IOE5V9554_4_00 - 03 */ "DI27", "DI28", "DI29", "DI30",
+		/* PI4IOE5V9554_4_04 - 07 */ "DI31", "DI32", "DI33", "DI34";
+};

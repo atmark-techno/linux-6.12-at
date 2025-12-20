@@ -424,6 +424,38 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ulz-14x14-evk-gpmi-weim.dtb \
 	imx6ulz-bsh-smm-m2.dtb
 
+dtb-$(CONFIG_SOC_IMX6UL) += \
+	armadillo-610-full.dtb \
+	armadillo-640-full.dtb \
+	armadillo-iotg-a6e-full.dtb
+armadillo-610-full-dtbs := \
+	armadillo-610.dtb \
+	armadillo-600-customize.dtbo \
+	armadillo-600-button-enter.dtbo \
+	armadillo-610-extboard-eva.dtbo \
+	armadillo-610-extboard-eva-grove.dtbo \
+	armadillo-610-extboard-eva-usdhc2.dtbo \
+	armadillo-610-at-dtweb.dtbo
+armadillo-640-full-dtbs := \
+	armadillo-640.dtb \
+	armadillo-640-at-dtweb.dtbo \
+	armadillo-640-con9-thread-lwb5plus.dtbo \
+	armadillo-640-con9-rtc.dtbo \
+	armadillo-640-lcd70ext-l00.dtbo
+armadillo-iotg-a6e-full-dtbs := \
+	armadillo-iotg-a6e.dtb \
+	armadillo-iotg-a6e-at-dtweb.dtbo \
+	armadillo-iotg-a6e-di8ai4-1st.dtbo \
+	armadillo-iotg-a6e-di8ai4-2nd.dtbo \
+	armadillo-iotg-a6e-di8ai4-3rd.dtbo \
+	armadillo-iotg-a6e-di8ai4-4th.dtbo \
+	armadillo-iotg-a6e-els31.dtbo \
+	armadillo-iotg-a6e-ems31.dtbo \
+	armadillo-iotg-a6e-sim7672.dtbo \
+	armadillo-iotg-a6e-lwb5plus.dtbo \
+	armadillo-iotg-a6e-stdwn-ind-do1.dtbo \
+	armadillo-iotg-a6e-stdwn-ind-con8-pin7.dtbo
+
 imx6ul-14x14-evk-reve-dtbs := imx6ul-14x14-evk.dtb imx6ul-14x14-evk-reve.dtbo
 imx6ul-14x14-evk-reve-csi-dtbs := imx6ul-14x14-evk-csi.dtb imx6ul-14x14-evk-reve.dtbo
 imx6ul-14x14-evk-reve-emmc-dtbs := imx6ul-14x14-evk-emmc.dtb imx6ul-14x14-evk-reve.dtbo
