@@ -26,7 +26,7 @@
 #ifndef _AWL13_SYSFS_H_
 #define _AWL13_SYSFS_H_
 
-extern int  awl13_sysfs_init(struct awl13_private *priv);
-extern void awl13_sysfs_remove(struct awl13_private *priv);
+int  awl13_sysfs_init(struct awl13_private *priv);
+void awl13_sysfs_remove(struct awl13_private *priv);
 
 #endif /* _AWL13_SYSFS_H_ */

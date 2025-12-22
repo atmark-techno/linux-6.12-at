@@ -31,6 +31,7 @@
 #include "awl13_wid.h"
 #include "awl13_fw.h"
 #include "awl13_ioctl.h"
+#include "awl13_sysfs.h"
 
 struct awl13_attribute {
 	struct device_attribute dattr;

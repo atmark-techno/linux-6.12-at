@@ -1098,7 +1098,7 @@ awl13_iw_siwenc(struct net_device *dev, struct iw_request_info *info,
 	switch (dwrq->length) {
 	case (AWL13_WEPKEY_MAX / 2):
 		crypt |= AWL13_CRYPT_WEPSZ;
-		/* FALL THROUGH */
+		fallthrough;
 	case (AWL13_WEPKEY_MIN / 2):
 		memset(buf, 0, sizeof(buf));
 		/* convert to ascii code */
@@ -1316,8 +1316,10 @@ awl13_iw_siwencodeext(struct net_device *dev, struct iw_request_info *info,
 {
 	struct awl13_private *priv = devToPriv(dev);
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
-	unsigned char buf[max((int)sizeof(priv->prev_enckey), 64)];
+	unsigned char buf[64];
 	int index, ret, i;
+
+	BUILD_BUG_ON(sizeof(priv->prev_enckey) >= 64);
 
 	index = dwrq->flags & IW_ENCODE_INDEX;
 	if ((index < 0) || (AWL13_KEYINDEX_MAX < index))
@@ -1406,7 +1408,7 @@ awl13_ip_getmac(struct net_device *dev, struct iw_request_info *info,
 
 	data->length = strlen(extra);
 
-	memcpy(priv->netdev->dev_addr, mac, 6);
+	eth_hw_addr_set(priv->netdev, mac);
 
 	return 0;
 }

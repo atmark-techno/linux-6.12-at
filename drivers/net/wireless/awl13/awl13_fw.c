@@ -318,7 +318,7 @@ awl13_firmware_setup_without_load(struct awl13_private *priv)
 	uint8_t preamble = 2;
 
 	awl13_get_macaddr(priv, mac, 6);
-	memcpy(priv->netdev->dev_addr, mac, 6);
+	eth_hw_addr_set(priv->netdev, mac);
 
 	awl_info("MAC is %02x:%02x:%02x:%02x:%02x:%02x\n",
 	       mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);

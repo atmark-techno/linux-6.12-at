@@ -2004,8 +2004,9 @@ awl13_set_wps_cred_list(struct awl13_private *priv )
 								   WID_GENKEY_TIMEOUT );
 	if (ret<0)
 		awl_err("failed set WID_WPS_CRED_LIST\n");
-	else
+	else {
 	    awl_devdump( priv->wps_cred_list, priv->wps_cred_list_size );
+	}
 	return ret;
 }
 
@@ -2028,8 +2029,9 @@ awl13_get_wps_cred_list(struct awl13_private *priv )
 								   WID_DEFAULT_TIMEOUT );
 	if (ret<0)
 		awl_err("failed get WID_WPS_CRED_LIST\n");
-	else
+	else {
 	    awl_devdump( priv->wps_cred_list, priv->wps_cred_list_size );
+	}
 	return ret;
 }
 

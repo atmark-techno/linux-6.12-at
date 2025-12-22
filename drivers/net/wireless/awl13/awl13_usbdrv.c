@@ -940,9 +940,7 @@ awl13_unbind(struct awl13_usbnet *dev, struct usb_interface *intf)
 	del_timer (&priv->wid_retry);
 
 	/* wid_queue */
-	(void)cancel_delayed_work(&priv->wid_queue);
-	/* we don't hold rtnl here ... */
-	flush_scheduled_work();
+	(void)cancel_delayed_work_sync(&priv->wid_queue);
 
 	awl13_bind_clean(priv);
 	return;
@@ -1736,8 +1734,9 @@ awl13_rx_complete (struct urb *urb)
 	entry->state = awl13_rx_done;
 	entry->urb = NULL;
 
-	if(urb_status)
+	if(urb_status) {
 		awl_develop2 ("awl13_rx_complete error (%d)\n", urb_status );
+	}
 
 	switch (urb_status) {
 	/* success */
@@ -1759,7 +1758,7 @@ awl13_rx_complete (struct urb *urb)
 		awl_debug ("awl13_rx_complete urb status error(%d)\n", urb_status );
 		dev->stats.rx_errors++;
 		awl13_usbnet_defer_kevent (dev, AWL13_EVENT_RX_HALT);
-		// FALLTHROUGH
+		fallthrough;
 
 	/* software-driven interface shutdown */
 	case -ECONNRESET:		/* async unlink */
@@ -1790,7 +1789,7 @@ block:
 	case -EOVERFLOW:
 		awl_debug ("awl13_rx_complete urb status error(%d)\n", urb_status );
 		dev->stats.rx_over_errors++;
-		// FALLTHROUGH
+		fallthrough;
 
 	default:
 		awl_debug ("awl13_rx_complete urb status error(%d)\n", urb_status );
@@ -1954,8 +1953,9 @@ awl13_kevent (struct work_struct *work)
 		}
 	}
 
-	if (dev->flags)
+	if (dev->flags) {
 		awl_debug ("awl13_kevent done, flags = 0x%lx\n", dev->flags);
+	}
 }
 
 /******************************************************************************
@@ -2136,7 +2136,7 @@ awl13_usbnet_init_status (struct awl13_usbnet *dev, struct usb_interface *intf)
 			dev->status->desc.bEndpointAddress
 				& USB_ENDPOINT_NUMBER_MASK);
 
-	maxp = usb_maxpacket (dev->udev, pipe, 0);
+	maxp = usb_maxpacket (dev->udev, pipe);
 
         /* BUG: It changes in v0.3.3 */
 	/* avoid 1 msec chatter:  min 8 msec poll rate */
@@ -2216,8 +2216,9 @@ awl13_usbnet_defer_kevent (struct awl13_usbnet *dev, int work)
 	set_bit (work, &dev->flags);
 	if (!schedule_work (&dev->kevent))
 		awl_err ("kevent %d may have been dropped\n", work);
-	else
+	else {
 		awl_develop ("kevent %d scheduled\n", work);
+	}
 }
 
 /******************************************************************************
@@ -2585,9 +2586,10 @@ awl_debug ("bogus skb state %d\n", entry->state);
 					awl13_rx_submit (dev, urb, GFP_ATOMIC);
 				}
 			}
-			if (temp != dev->rxq.qlen )
+			if (temp != dev->rxq.qlen ) {
 				awl_debug ("rxqlen %d --> %d\n",
 						temp, dev->rxq.qlen);
+			}
 
 			if (dev->rxq.qlen < qlen)
 				tasklet_schedule (&dev->bh);
