@@ -160,6 +160,16 @@ struct brcmf_usbdev_info {
 	struct brcmf_mp_device *settings;
 };
 
+/*
+ * There are two devices:
+ * - chipset devices
+ * - special entry(for device with firmware loaded and running)
+ * Resources cannot be shared because the devices are
+ * different. Therefore, make clm firmware global.
+ */
+char brcmf_usb_clm_name[BRCMF_FW_NAME_LEN];
+const struct firmware *brcmf_usb_clm_fw;
+
 static void brcmf_usb_rx_refill(struct brcmf_usbdev_info *devinfo,
 				struct brcmf_usbreq  *req);
 
@@ -1153,8 +1163,19 @@ error:
 static int brcmf_usb_get_blob(struct device *dev, const struct firmware **fw,
 			      enum brcmf_blob_type type)
 {
-	/* No blobs for USB devices... */
-	return -ENOENT;
+	switch (type) {
+	case BRCMF_BLOB_CLM:
+		*fw = brcmf_usb_clm_fw;
+		brcmf_usb_clm_fw = NULL;
+		break;
+	default:
+		return -ENOENT;
+	}
+
+	if (!*fw)
+		return -ENOENT;
+
+	return 0;
 }
 
 static const struct brcmf_bus_ops brcmf_usb_bus_ops = {
@@ -1167,6 +1188,7 @@ static const struct brcmf_bus_ops brcmf_usb_bus_ops = {
 };
 
 #define BRCMF_USB_FW_CODE	0
+#define BRCMF_USB_FW_CLM	1
 
 static void brcmf_usb_probe_phase2(struct device *dev, int ret,
 				   struct brcmf_fw_request *fwreq)
@@ -1181,6 +1203,7 @@ static void brcmf_usb_probe_phase2(struct device *dev, int ret,
 	brcmf_dbg(USB, "Start fw downloading\n");
 
 	fw = fwreq->items[BRCMF_USB_FW_CODE].binary;
+	brcmf_usb_clm_fw = fwreq->items[BRCMF_USB_FW_CLM].binary;
 	kfree(fwreq);
 
 	ret = check_file(fw->data);
@@ -1221,6 +1244,7 @@ brcmf_usb_prepare_fw_request(struct brcmf_usbdev_info *devinfo)
 	struct brcmf_fw_request *fwreq;
 	struct brcmf_fw_name fwnames[] = {
 		{ ".bin", devinfo->fw_name },
+		{ ".clm_blob", brcmf_usb_clm_name },
 	};
 
 	fwreq = brcmf_fw_alloc_request(devinfo->bus_pub.devid,
@@ -1232,6 +1256,8 @@ brcmf_usb_prepare_fw_request(struct brcmf_usbdev_info *devinfo)
 		return NULL;
 
 	fwreq->items[BRCMF_USB_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
+	fwreq->items[BRCMF_USB_FW_CLM].type = BRCMF_FW_TYPE_BINARY;
+	fwreq->items[BRCMF_USB_FW_CLM].flags = BRCMF_FW_REQF_OPTIONAL;
 
 	return fwreq;
 }
