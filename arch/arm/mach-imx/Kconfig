@@ -55,6 +55,12 @@ config HAVE_IMX_SRC
 	def_bool y if SMP
 	select ARCH_HAS_RESET_CONTROLLER
 
+config IMX_BUSFREQ
+	bool "bus-freq support"
+	default y
+	help
+	  This enables support for bus-freq
+
 if ARCH_MULTI_V6
 
 comment "ARM1136 platforms"

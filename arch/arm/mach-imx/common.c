@@ -124,6 +124,7 @@ put_enet_node:
 	}
 }
 
+#if defined(CONFIG_IMX_BUSFREQ)
 #if !defined(CONFIG_SOC_IMX6SL)
 u32 imx6_lpddr2_freq_change_start, imx6_lpddr2_freq_change_end;
 void mx6_lpddr2_freq_change(u32 freq, int bus_freq_mode) {}
@@ -154,5 +155,6 @@ void wfe_smp_freq_change(u32 cpuid, u32 *ddr_freq_change_done) {}
 #if !defined(CONFIG_SOC_IMX7D)
 void imx7_smp_wfe(u32 cpuid, u32 ocram_base) {}
 void imx7d_ddr3_freq_change(u32 freq) {}
+#endif
 #endif
 
