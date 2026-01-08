@@ -524,6 +524,8 @@ static void imx_rpmsg_unmask_irq(struct irq_data *d)
 		return;
 	}
 
+	gpiochip_enable_irq(&port->gc, gpio_idx);
+
 	pin = &port->gpio_pins[gpio_idx];
 
 	spin_lock_irqsave(&pin->state_lock, flags);
@@ -595,6 +597,8 @@ static struct irq_chip imx_rpmsg_irq_chip = {
 	.irq_shutdown = imx_rpmsg_irq_shutdown,
 	.irq_bus_lock = imx_rpmsg_irq_bus_lock,
 	.irq_bus_sync_unlock = imx_rpmsg_irq_bus_sync_unlock,
+	.flags          = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static void imx_rpmsg_gpio_send_ack(struct work_struct *work)
@@ -652,6 +656,9 @@ static void imx_rpmsg_gpio_send_ack(struct work_struct *work)
 	mutex_lock(&gpio_rpmsg.lock);
 	gpio_send_message(port, &msg, &gpio_rpmsg, NULL);
 	mutex_unlock(&gpio_rpmsg.lock);
+
+	if (state == IRQ_MASKED_JUSTSET)
+		gpiochip_disable_irq(&port->gc, gpio_idx);
 }
 
 
@@ -902,7 +909,7 @@ static int imx_rpmsg_gpio_probe(struct platform_device *pdev)
 	port->chip.name = kasprintf(GFP_KERNEL, "rpmsg-irq-port-%d", port->idx);
 
 	girq = &gc->irq;
-	girq->chip = &port->chip;
+	gpio_irq_chip_set_chip(girq, &port->chip);
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_bad_irq;
 
