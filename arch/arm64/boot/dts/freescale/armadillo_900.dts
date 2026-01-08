@@ -120,6 +120,14 @@
 		clock-output-names = "ext_rmii_clk";
 		#clock-cells = <0>;
 	};
+
+	clock_ext_ts: clock-ext-ts {
+		compatible = "fixed-clock";
+		/* External ts clock is 50MHZ from PHY on EVK board. */
+		clock-frequency = <50000000>;
+		clock-output-names = "ext_ts_clk";
+		#clock-cells = <0>;
+	};
 };
 
 // secure element
@@ -171,6 +179,8 @@
 		 <&cgc1 IMX8ULP_CLK_ENET_TS_SEL>,
 		 <&clock_ext_rmii>;
 	clock-names = "ipg", "ahb", "ptp", "enet_clk_ref";
+	assigned-clocks = <&cgc1 IMX8ULP_CLK_ENET_TS_SEL>;
+	assigned-clock-parents = <&clock_ext_ts>;
 	phy-mode = "rmii";
 	phy-handle = <&ethphy>;
 	status = "okay";
