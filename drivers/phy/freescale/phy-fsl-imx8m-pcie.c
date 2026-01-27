@@ -62,11 +62,6 @@
 #define  LN0_OVRD_TX_DRV_PRE_LVL_G1	0x15
 #define IMX8MP_PCIE_PHY_TRSV_REG00A	0x428
 #define  LN0_OVRD_TX_DRV_PRE_LVL_G23	0x55
-#define IMX8MP_PCIE_PHY_TRSV_REG00C	0x430
-#define  LN0_ANA_TX_DRV_IDRV_IDN_CTRL	FIELD_PREP(GENMASK(7, 5), 0x4)
-#define  LN0_ANA_TX_DRV_IDRV_IUP_CTRL	FIELD_PREP(GENMASK(4, 2), 0x4)
-#define  LN0_ANA_TX_DRV_IDRV_VREF_SEL	BIT(1)
-#define  LN0_ANA_TX_DRV_ACCDRV_EN	BIT(0)
 #define IMX8MP_PCIE_PHY_TRSV_REG059	0x4EC
 #define  LN0_OVRD_RX_CTLE_RS1_G1	0x13
 #define IMX8MP_PCIE_PHY_TRSV_REG060	0x4F0
@@ -160,22 +155,6 @@ static int imx8_pcie_phy_power_on(struct phy *phy)
 		       imx8_phy->base + IMX8MM_PCIE_PHY_CMN_REG064);
 		writel(ANA_AUX_RX_TERM | ANA_AUX_TX_LVL,
 		       imx8_phy->base + IMX8MM_PCIE_PHY_CMN_REG065);
-	}
-
-	/*
-	 * For Armadillo-IoT G4
-	 */
-	if (1) {
-		if (pad_mode == IMX8_PCIE_REFCLK_PAD_OUTPUT ||
-		    pad_mode == IMX8_PCIE_REFCLK_PAD_UNUSED) {
-			val = ANA_AUX_RX_TX_SEL_TX | BIT(1);
-			writel(val | ANA_AUX_RX_TERM_GND_EN,
-			       imx8_phy->base + IMX8MM_PCIE_PHY_CMN_REG064);
-		}
-
-		val = LN0_ANA_TX_DRV_IDRV_IDN_CTRL | LN0_ANA_TX_DRV_IDRV_IUP_CTRL;
-		writel(val | LN0_ANA_TX_DRV_ACCDRV_EN,
-		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG00C);
 	}
 
 	/* Set AUX_EN_OVERRIDE 1'b0, when the CLKREQ# isn't hooked */
