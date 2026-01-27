@@ -19,6 +19,8 @@
 
 #include <dt-bindings/phy/phy-imx8-pcie.h>
 
+#define IMX8MP_PCIE_PHY_CMN_REG020	0x80
+#define  PLL_ANA_LPF_R_SEL_FINE_0_4	0x04
 #define IMX8MM_PCIE_PHY_CMN_REG061	0x184
 #define  ANA_PLL_CLK_OUT_TO_EXT_IO_EN	BIT(0)
 #define IMX8MM_PCIE_PHY_CMN_REG062	0x188
@@ -56,12 +58,26 @@
 #define  LN0_OVRD_TX_DRV_PST_LVL_G1	0x2B
 #define IMX8MP_PCIE_PHY_TRSV_REG006	0x418
 #define  LN0_OVRD_TX_DRV_PST_LVL_G2	0xB
+#define  LN0_OVRD_TX_DRV_PST_LVL_G2_ARMADILLO_G4 0x3
 #define IMX8MP_PCIE_PHY_TRSV_REG007	0x41C
 #define  LN0_OVRD_TX_DRV_PST_LVL_G3	0xB
+#define  LN0_OVRD_TX_DRV_PST_LVL_G3_ARMADILLO_G4 0xA
 #define IMX8MP_PCIE_PHY_TRSV_REG009	0x424
 #define  LN0_OVRD_TX_DRV_PRE_LVL_G1	0x15
+#define  LN0_OVRD_TX_DRV_PRE_LVL_G1_ARMADILLO_G4 0x10
 #define IMX8MP_PCIE_PHY_TRSV_REG00A	0x428
 #define  LN0_OVRD_TX_DRV_PRE_LVL_G23	0x55
+#define  LN0_OVRD_TX_DRV_PRE_LVL_G23_ARMADILLO_G4 0x0
+#define IMX8MP_PCIE_PHY_TRSV_REG00B	0x42C
+#define	 LN0_TX_DRV_PRE_LVL_CTRL_G4	FIELD_PREP(GENMASK(6, 3), 0x0)
+#define	 LN0_ANA_TX_DRV_BEACON_LFPS_SYNC_EN BIT(2)
+#define	 LN0_OVRD_TX_DRV_IDRV_EN	FIELD_PREP(BIT(1), 0)
+#define	 LN0_TX_DRV_IDRV_EN		BIT(0)
+#define IMX8MP_PCIE_PHY_TRSV_REG00C	0x430
+#define  LN0_ANA_TX_DRV_IDRV_IDN_CTRL	FIELD_PREP(GENMASK(7, 5), 0x4)
+#define  LN0_ANA_TX_DRV_IDRV_IUP_CTRL	FIELD_PREP(GENMASK(4, 2), 0x4)
+#define  LN0_ANA_TX_DRV_IDRV_VREF_SEL	FIELD_PREP(BIT(1), 0)
+#define  LN0_ANA_TX_DRV_ACCDRV_EN	BIT(0)
 #define IMX8MP_PCIE_PHY_TRSV_REG059	0x4EC
 #define  LN0_OVRD_RX_CTLE_RS1_G1	0x13
 #define IMX8MP_PCIE_PHY_TRSV_REG060	0x4F0
@@ -80,6 +96,11 @@
 #define  LN0_RX_CDR_FBB_FINE_G3_G4	0x53
 #define IMX8MP_PCIE_PHY_TRSV_REG206	0x738
 #define  LN0_TG_RX_SIGVAL_LBF_DELAY	0x4
+
+enum imx8_pcie_phy_tuning_profile {
+	TWO_IMX8MP_EVK,
+	ARMADILLO_IOT_G4,
+};
 
 static int imx8_pcie_phy_tuned;
 enum imx8_pcie_phy_type {
@@ -103,6 +124,7 @@ struct imx8_pcie_phy {
 	u32			tx_deemph_gen1;
 	u32			tx_deemph_gen2;
 	bool			clkreq_unused;
+	enum imx8_pcie_phy_tuning_profile	profile;
 	const struct imx8_pcie_phy_drvdata	*drvdata;
 };
 
@@ -181,7 +203,10 @@ static int imx8_pcie_phy_power_on(struct phy *phy)
 	 * Fine tune the parameters of the PHY, let PCIe link up to Gen3
 	 * between two i.MX8MP EVK boards in the EP/RC validation system.
 	 */
-	if (imx8_pcie_phy_tuned && (imx8_phy->drvdata->variant == IMX8MP)) {
+	if ((imx8_phy->profile == TWO_IMX8MP_EVK) ||
+	    (imx8_pcie_phy_tuned && (imx8_phy->drvdata->variant == IMX8MP))) {
+		dev_info(&phy->dev, "Tuning i.MX PCIe PHY for two i.MX8MP EVK boards.\n");
+
 		writel(LN0_OVRD_TX_DRV_LVL_G1,
 		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG001);
 		writel(LN0_OVRD_TX_DRV_LVL_G2,
@@ -198,6 +223,67 @@ static int imx8_pcie_phy_power_on(struct phy *phy)
 		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG009);
 		writel(LN0_OVRD_TX_DRV_PRE_LVL_G23,
 		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG00A);
+		writel(LN0_OVRD_RX_CTLE_RS1_G1,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG059);
+		writel(LN0_OVRD_RX_CTLE_RS1_G2_G3,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG060);
+		writel(LN0_ANA_RX_CTLE_IBLEED,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG069);
+		writel(LN0_OVRD_RX_RTERM_VCM_EN,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG107);
+		writel(LN0_ANA_OVRD_RX_SQHS_DIFN_OC,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG109);
+		writel(LN0_ANA_OVRD_RX_SQHS_DIFP_OC,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG110);
+		writel(LN0_RX_CDR_FBB_FINE_G1_G2,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG158);
+		writel(LN0_RX_CDR_FBB_FINE_G3_G4,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG159);
+		writel(LN0_TG_RX_SIGVAL_LBF_DELAY,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG206);
+	}
+
+	/*
+	 * The PHY signal waveforms were confirmed to be acceptable
+	 * for the Armadillo-IoT G4 in the validation setup.
+	 */
+	if (imx8_phy->profile == ARMADILLO_IOT_G4) {
+		dev_info(&phy->dev, "Tuning i.MX PCIe PHY for Armadillo-IoT G4.\n");
+
+		writel(PLL_ANA_LPF_R_SEL_FINE_0_4,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_CMN_REG020);
+		if (pad_mode == IMX8_PCIE_REFCLK_PAD_OUTPUT ||
+		    pad_mode == IMX8_PCIE_REFCLK_PAD_UNUSED) {
+			val = ANA_AUX_RX_TX_SEL_TX | BIT(1);
+			writel(val | ANA_AUX_RX_TERM_GND_EN,
+			       imx8_phy->base + IMX8MM_PCIE_PHY_CMN_REG064);
+		}
+
+		writel(LN0_OVRD_TX_DRV_LVL_G1,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG001);
+		writel(LN0_OVRD_TX_DRV_LVL_G2,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG002);
+		writel(LN0_OVRD_TX_DRV_LVL_G3,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG003);
+		writel(LN0_OVRD_TX_DRV_PST_LVL_G1,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG005);
+		writel(LN0_OVRD_TX_DRV_PST_LVL_G2_ARMADILLO_G4,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG006);
+		writel(LN0_OVRD_TX_DRV_PST_LVL_G3_ARMADILLO_G4,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG007);
+		writel(LN0_OVRD_TX_DRV_PRE_LVL_G1_ARMADILLO_G4,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG009);
+		writel(LN0_OVRD_TX_DRV_PRE_LVL_G23_ARMADILLO_G4,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG00A);
+		val = LN0_TX_DRV_PRE_LVL_CTRL_G4;
+		val |= LN0_ANA_TX_DRV_BEACON_LFPS_SYNC_EN;
+		writel(val | LN0_OVRD_TX_DRV_IDRV_EN | LN0_TX_DRV_IDRV_EN,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG00B);
+		val = LN0_ANA_TX_DRV_IDRV_IDN_CTRL;
+		val |= LN0_ANA_TX_DRV_IDRV_IUP_CTRL;
+		val |= LN0_ANA_TX_DRV_IDRV_VREF_SEL;
+		writel(val | LN0_ANA_TX_DRV_ACCDRV_EN,
+		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG00C);
 		writel(LN0_OVRD_RX_CTLE_RS1_G1,
 		       imx8_phy->base + IMX8MP_PCIE_PHY_TRSV_REG059);
 		writel(LN0_OVRD_RX_CTLE_RS1_G2_G3,
@@ -307,6 +393,7 @@ static int imx8_pcie_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct imx8_pcie_phy *imx8_phy;
+	const char *s;
 
 	imx8_phy = devm_kzalloc(dev, sizeof(*imx8_phy), GFP_KERNEL);
 	if (!imx8_phy)
@@ -330,6 +417,13 @@ static int imx8_pcie_phy_probe(struct platform_device *pdev)
 		imx8_phy->clkreq_unused = true;
 	else
 		imx8_phy->clkreq_unused = false;
+
+	of_property_read_string(np, "fsl,phy-tuning-profile", &s);
+	if (s && !strcmp(s, "two-imx8mp-evk")) {
+		imx8_phy->profile = TWO_IMX8MP_EVK;
+	} else if (s && !strcmp(s, "armadillo-iot-g4")) {
+		imx8_phy->profile = ARMADILLO_IOT_G4;
+	}
 
 	imx8_phy->clk = devm_clk_get(dev, "ref");
 	if (IS_ERR(imx8_phy->clk))

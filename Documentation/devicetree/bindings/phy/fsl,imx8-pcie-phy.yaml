@@ -66,6 +66,15 @@ properties:
     description: A boolean property indicating the CLKREQ# signal is
       not supported in the board design (optional)
 
+  fsl,phy-tuning-profile:
+    description: Selects a board-specific PHY tuning profile used to
+      adjust PCIe PHY parameters validated under specific hardware and
+      signal integrity conditions. The selected profile applies
+      predefined tuning values and is intended for validated board
+      combinations only (optional).
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [two-imx8mp-evk, armadillo-iot-g4]
+
   power-domains:
     description: PCIe PHY  power domain (optional).
     maxItems: 1
