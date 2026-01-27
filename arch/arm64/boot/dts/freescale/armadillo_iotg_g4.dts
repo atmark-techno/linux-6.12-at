@@ -1083,6 +1083,7 @@
 	clock-names = "ref";
 	clocks = <&hsio_blk_ctrl>;
 	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_OUTPUT>;
+	fsl,phy-tuning-profile = "armadillo-iot-g4";
 	status = "okay";
 };
 
