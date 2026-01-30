@@ -2087,6 +2087,7 @@ static void imx_pcie_shutdown(struct platform_device *pdev)
 		imx_pcie->host_wake_irq = -1;
 	}
 
+	dw_pcie_host_deinit(&imx_pcie->pci->pp);
 	/* bring down link, so bootloader gets clean state in case of reboot */
 	imx_pcie_assert_core_reset(imx_pcie);
 }
