@@ -1079,6 +1079,10 @@
 	status = "okay";
 };
 
+&gpu_reserved {
+	reg = <0 0x80000000 0 0x10000000>;
+};
+
 &pcie_phy {
 	clock-names = "ref";
 	clocks = <&hsio_blk_ctrl>;
