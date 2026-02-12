@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/clock/imx8-lpcg.h>
+#include <dt-bindings/dma/fsl-edma.h>
 #include <dt-bindings/firmware/imx/rsrc.h>
 
 dma_ipg_clk: clock-dma-ipg {

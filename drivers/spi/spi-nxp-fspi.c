@@ -330,7 +330,6 @@
 
 /* Access flash memory using IP bus only */
 #define FSPI_QUIRK_USE_IP_ONLY	BIT(0)
-
 /* Disable DTR */
 #define FSPI_QUIRK_DISABLE_DTR	BIT(1)
 
@@ -789,7 +788,7 @@ static void nxp_fspi_dll_override(struct nxp_fspi *f)
  *
  */
 static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
-					const struct spi_mem_op *op)
+				const struct spi_mem_op *op)
 {
 	unsigned long rate, serial_root_clk_rate;
 	int ret;
@@ -818,7 +817,7 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	dev_dbg(f->dev, "Target device [CS:%x] selected\n", spi_get_chipselect(spi, 0));
 
 	nxp_fspi_select_rx_sample_clk_source(f, op);
-	rate = min(f->support_max_rate, spi->max_speed_hz);
+	rate = min(f->support_max_rate, op->max_freq);
 
 	if (!op->cmd.dtr) {
 		f->flags &= ~FSPI_DTR_MODE;
@@ -1328,10 +1327,13 @@ static const struct spi_controller_mem_ops nxp_fspi_mem_ops = {
 
 static const struct spi_controller_mem_caps nxp_fspi_mem_caps = {
 	.dtr = true,
+	.swap16 = false,
+	.per_op_freq = true,
 };
 
-static const struct spi_controller_mem_caps nxp_fspi_mem_caps_quirks = {
+static const struct spi_controller_mem_caps nxp_fspi_mem_caps_disable_dtr = {
 	.dtr = false,
+	.per_op_freq = true,
 };
 
 static void nxp_fspi_cleanup(void *data)
@@ -1362,13 +1364,13 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct resource *res;
 	struct nxp_fspi *f;
-	int ret;
+	int ret, irq;
 	u32 reg;
 
-	ctlr = spi_alloc_host(&pdev->dev, sizeof(*f));
+	ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*f));
 	if (!ctlr)
 		return -ENOMEM;
 
@@ -1378,100 +1380,93 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 	f = spi_controller_get_devdata(ctlr);
 	f->dev = dev;
 	f->devtype_data = (struct nxp_fspi_devtype_data *)device_get_match_data(dev);
-	if (!f->devtype_data) {
-		ret = -ENODEV;
-		goto err_put_ctrl;
-	}
+	if (!f->devtype_data)
+		return -ENODEV;
 
 	platform_set_drvdata(pdev, f);
 
 	/* find the resources - configuration register address space */
-	if (is_acpi_node(dev_fwnode(f->dev)))
+	if (is_acpi_node(fwnode))
 		f->iobase = devm_platform_ioremap_resource(pdev, 0);
 	else
 		f->iobase = devm_platform_ioremap_resource_byname(pdev, "fspi_base");
-
-	if (IS_ERR(f->iobase)) {
-		ret = PTR_ERR(f->iobase);
-		goto err_put_ctrl;
-	}
+	if (IS_ERR(f->iobase))
+		return PTR_ERR(f->iobase);
 
 	/* find the resources - controller memory mapped space */
-	if (is_acpi_node(dev_fwnode(f->dev)))
+	if (is_acpi_node(fwnode))
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	else
 		res = platform_get_resource_byname(pdev,
 				IORESOURCE_MEM, "fspi_mmap");
-
-	if (!res) {
-		ret = -ENODEV;
-		goto err_put_ctrl;
-	}
+	if (!res)
+		return -ENODEV;
 
 	/* assign memory mapped starting address and mapped size. */
 	f->memmap_phy = res->start;
 	f->memmap_phy_size = resource_size(res);
 
 	/* find the clocks */
-	if (dev_of_node(&pdev->dev)) {
+	if (is_of_node(fwnode)) {
 		f->clk_en = devm_clk_get(dev, "fspi_en");
-		if (IS_ERR(f->clk_en)) {
-			ret = PTR_ERR(f->clk_en);
-			goto err_put_ctrl;
-		}
+		if (IS_ERR(f->clk_en))
+			return PTR_ERR(f->clk_en);
 
 		f->clk = devm_clk_get(dev, "fspi");
-		if (IS_ERR(f->clk)) {
-			ret = PTR_ERR(f->clk);
-			goto err_put_ctrl;
-		}
+		if (IS_ERR(f->clk))
+			return PTR_ERR(f->clk);
 	}
 
-	pm_runtime_enable(dev);
+	devm_pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, FSPI_RPM_TIMEOUT);
 	pm_runtime_use_autosuspend(dev);
 
 	/* enable clock */
 	ret = pm_runtime_get_sync(f->dev);
-	if (ret < 0) {
-		dev_err(f->dev, "Failed to enable clock %d\n", __LINE__);
-		goto err_put_ctrl;
-	}
+	if (ret < 0)
+		return dev_err_probe(f->dev, ret, "Failed to enable clock %d\n", __LINE__);
+
+	/* find the irq */
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return dev_err_probe(dev, irq, "Failed to get irq source");
+
+	ret = nxp_fspi_clk_prep_enable(f);
+	if (ret)
+		return dev_err_probe(dev, ret, "Can't enable the clock\n");
 
 	/* Clear potential interrupts */
 	reg = fspi_readl(f, f->iobase + FSPI_INTR);
 	if (reg)
 		fspi_writel(f, reg, f->iobase + FSPI_INTR);
 
-	/* find the irq */
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0)
-		goto err_disable_clk;
+	nxp_fspi_default_setup(f);
 
-	ret = devm_request_irq(dev, ret,
+	ret = devm_request_irq(dev, irq,
 			nxp_fspi_irq_handler, 0, pdev->name, f);
 	if (ret) {
-		dev_err(dev, "failed to request irq: %d\n", ret);
-		goto err_disable_clk;
+		nxp_fspi_clk_disable_unprep(f);
+		return dev_err_probe(dev, ret, "Failed to request irq\n");
 	}
 
 	/* check if the controller work in combination or individual mode */
 	f->individual_mode = of_property_read_bool(np,
 						   "nxp,fspi-individual-mode");
 
-	mutex_init(&f->lock);
+	ret = devm_mutex_init(dev, &f->lock);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to initialize lock\n");
 
 	ctlr->bus_num = -1;
 	ctlr->num_chipselect = NXP_FSPI_MAX_CHIPSELECT;
 	ctlr->mem_ops = &nxp_fspi_mem_ops;
+
 	if (f->devtype_data->quirks & FSPI_QUIRK_DISABLE_DTR)
-		ctlr->mem_caps = &nxp_fspi_mem_caps_quirks;
+		ctlr->mem_caps = &nxp_fspi_mem_caps_disable_dtr;
 	else
 		ctlr->mem_caps = &nxp_fspi_mem_caps;
 
-	nxp_fspi_default_setup(f);
-
-	ctlr->dev.of_node = np;
+	device_set_node(&ctlr->dev, fwnode);
 
 	ret = devm_add_action_or_reset(dev, nxp_fspi_cleanup, f);
 	if (ret)
@@ -1488,15 +1483,6 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 	f->flags |= FSPI_INITILIZED;
 
 	return 0;
-
-err_disable_clk:
-	pm_runtime_disable(dev);
-
-err_put_ctrl:
-	spi_controller_put(ctlr);
-
-	dev_err(dev, "NXP FSPI probe failed\n");
-	return ret;
 }
 
 #ifdef CONFIG_PM

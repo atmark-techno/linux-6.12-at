@@ -684,12 +684,14 @@ static int __maybe_unused ak4458_runtime_resume(struct device *dev)
 	regcache_mark_dirty(ak4458->regmap);
 
 	ret = regcache_sync(ak4458->regmap);
-	if (ret) {
-		regulator_bulk_disable(ARRAY_SIZE(ak4458->supplies),
-				       ak4458->supplies);
-		return ret;
-	}
+	if (ret)
+		goto err;
+
 	return 0;
+err:
+	regcache_cache_only(ak4458->regmap, true);
+	regulator_bulk_disable(ARRAY_SIZE(ak4458->supplies), ak4458->supplies);
+	return ret;
 }
 #endif /* CONFIG_PM */
 
@@ -796,7 +798,6 @@ static int ak4458_i2c_probe(struct i2c_client *i2c)
 
 	pm_runtime_enable(&i2c->dev);
 	regcache_cache_only(ak4458->regmap, true);
-	ak4458_reset(ak4458, false);
 
 	/* Check if first register can be read or not */
 	ret = regmap_read_bypassed(ak4458->regmap, AK4458_00_CONTROL1, &reg);
