@@ -278,7 +278,8 @@ armadillo_iotg_g4_all-dtbs = armadillo_iotg_g4.dtb \
 			     armadillo_iotg_g4-aw-xm458.dtbo \
 			     armadillo_iotg_g4-high-g0-es-ext-board.dtbo \
 			     armadillo_iotg_g4-customize.dtbo \
-			     armadillo_iotg_g4-rpmsg.dtbo
+			     armadillo_iotg_g4-rpmsg.dtbo \
+			     armadillo_iotg_g4-usb1-otg.dtbo
 			     # does not apply
 			     # armadillo_iotg_g4-high-g0-no-wireless.dtbo
 dtb-$(CONFIG_ARCH_MXC) += armadillo_iotg_g4_all.dtb
