@@ -58,6 +58,9 @@ typedef struct {
 /** Name of the USB driver */
 static const char usbdriver_name[] = "usbxxx";
 
+static struct usb_device_id *woal_usb_table_ext = NULL;
+static usb_config_t customer_usb_config = {0x0};
+
 /** This structure contains the device signature */
 static struct usb_device_id woal_usb_table[] = {
 /* Enter the device signature inside */
@@ -703,6 +706,7 @@ static t_u16 woal_update_card_type(t_void *card)
 {
 	struct usb_card_rec *cardp_usb = (struct usb_card_rec *)card;
 	t_u16 card_type = 0;
+	char device_name[MAX_DEVICE_NAME];
 
 	/* Update card type */
 #ifdef USB8897
@@ -713,12 +717,13 @@ static t_u16 woal_update_card_type(t_void *card)
 		card_type = CARD_TYPE_USB8897;
 		moal_memcpy_ext(NULL, driver_version, CARD_USB8897,
 				strlen(CARD_USB8897), strlen(driver_version));
-		moal_memcpy_ext(NULL,
-				driver_version + strlen(INTF_CARDTYPE) +
-					strlen(KERN_VERSION),
-				V15, strlen(V15),
-				strlen(driver_version) - strlen(INTF_CARDTYPE) -
-					strlen(KERN_VERSION));
+		moal_memcpy_ext(
+			NULL,
+			driver_version + strlen(INTF_CARDTYPE) +
+				strlen(KERN_VERSION),
+			V15, strlen(V15),
+			strnlen(driver_version, MLAN_MAX_VER_STR_LEN - 1) -
+				strlen(INTF_CARDTYPE) - strlen(KERN_VERSION));
 	}
 #endif
 #ifdef USB8997
@@ -739,12 +744,13 @@ static t_u16 woal_update_card_type(t_void *card)
 		card_type = CARD_TYPE_USB8997;
 		moal_memcpy_ext(NULL, driver_version, CARD_USB8997,
 				strlen(CARD_USB8997), strlen(driver_version));
-		moal_memcpy_ext(NULL,
-				driver_version + strlen(INTF_CARDTYPE) +
-					strlen(KERN_VERSION),
-				V16, strlen(V16),
-				strlen(driver_version) - strlen(INTF_CARDTYPE) -
-					strlen(KERN_VERSION));
+		moal_memcpy_ext(
+			NULL,
+			driver_version + strlen(INTF_CARDTYPE) +
+				strlen(KERN_VERSION),
+			V16, strlen(V16),
+			strnlen(driver_version, MLAN_MAX_VER_STR_LEN - 1) -
+				strlen(INTF_CARDTYPE) - strlen(KERN_VERSION));
 	}
 #endif
 #ifdef USB8978
@@ -755,12 +761,13 @@ static t_u16 woal_update_card_type(t_void *card)
 		card_type = CARD_TYPE_USB8978;
 		moal_memcpy_ext(NULL, driver_version, "USBIW416",
 				strlen("USBIW416"), strlen(driver_version));
-		moal_memcpy_ext(NULL,
-				driver_version + strlen(INTF_CARDTYPE) +
-					strlen(KERN_VERSION),
-				V16, strlen(V16),
-				strlen(driver_version) - strlen(INTF_CARDTYPE) -
-					strlen(KERN_VERSION));
+		moal_memcpy_ext(
+			NULL,
+			driver_version + strlen(INTF_CARDTYPE) +
+				strlen(KERN_VERSION),
+			V16, strlen(V16),
+			strnlen(driver_version, MLAN_MAX_VER_STR_LEN - 1) -
+				strlen(INTF_CARDTYPE) - strlen(KERN_VERSION));
 	}
 #endif
 #ifdef USB9098
@@ -771,12 +778,13 @@ static t_u16 woal_update_card_type(t_void *card)
 		card_type = CARD_TYPE_USB9098;
 		moal_memcpy_ext(NULL, driver_version, CARD_USB9098,
 				strlen(CARD_USB9098), strlen(driver_version));
-		moal_memcpy_ext(NULL,
-				driver_version + strlen(INTF_CARDTYPE) +
-					strlen(KERN_VERSION),
-				V17, strlen(V17),
-				strlen(driver_version) - strlen(INTF_CARDTYPE) -
-					strlen(KERN_VERSION));
+		moal_memcpy_ext(
+			NULL,
+			driver_version + strlen(INTF_CARDTYPE) +
+				strlen(KERN_VERSION),
+			V17, strlen(V17),
+			strnlen(driver_version, MLAN_MAX_VER_STR_LEN - 1) -
+				strlen(INTF_CARDTYPE) - strlen(KERN_VERSION));
 	}
 #endif
 #ifdef USB9097
@@ -787,12 +795,13 @@ static t_u16 woal_update_card_type(t_void *card)
 		card_type = CARD_TYPE_USB9097;
 		moal_memcpy_ext(NULL, driver_version, CARD_USB9097,
 				strlen(CARD_USB9097), strlen(driver_version));
-		moal_memcpy_ext(NULL,
-				driver_version + strlen(INTF_CARDTYPE) +
-					strlen(KERN_VERSION),
-				V17, strlen(V17),
-				strlen(driver_version) - strlen(INTF_CARDTYPE) -
-					strlen(KERN_VERSION));
+		moal_memcpy_ext(
+			NULL,
+			driver_version + strlen(INTF_CARDTYPE) +
+				strlen(KERN_VERSION),
+			V17, strlen(V17),
+			strnlen(driver_version, MLAN_MAX_VER_STR_LEN - 1) -
+				strlen(INTF_CARDTYPE) - strlen(KERN_VERSION));
 	}
 #endif
 #ifdef USBIW624
@@ -803,12 +812,13 @@ static t_u16 woal_update_card_type(t_void *card)
 		card_type = CARD_TYPE_USBIW624;
 		moal_memcpy_ext(NULL, driver_version, CARD_USBIW624,
 				strlen(CARD_USBIW624), strlen(driver_version));
-		moal_memcpy_ext(NULL,
-				driver_version + strlen(INTF_CARDTYPE) +
-					strlen(KERN_VERSION),
-				V18, strlen(V18),
-				strlen(driver_version) - strlen(INTF_CARDTYPE) -
-					strlen(KERN_VERSION));
+		moal_memcpy_ext(
+			NULL,
+			driver_version + strlen(INTF_CARDTYPE) +
+				strlen(KERN_VERSION),
+			V18, strlen(V18),
+			strnlen(driver_version, MLAN_MAX_VER_STR_LEN - 1) -
+				strlen(INTF_CARDTYPE) - strlen(KERN_VERSION));
 	}
 #endif
 #ifdef USBIW610
@@ -819,14 +829,68 @@ static t_u16 woal_update_card_type(t_void *card)
 		card_type = CARD_TYPE_USBIW610;
 		moal_memcpy_ext(NULL, driver_version, CARD_USBIW610,
 				strlen(CARD_USBIW610), strlen(driver_version));
-		moal_memcpy_ext(NULL,
-				driver_version + strlen(INTF_CARDTYPE) +
-					strlen(KERN_VERSION),
-				V18, strlen(V18),
-				strlen(driver_version) - strlen(INTF_CARDTYPE) -
-					strlen(KERN_VERSION));
+		moal_memcpy_ext(
+			NULL,
+			driver_version + strlen(INTF_CARDTYPE) +
+				strlen(KERN_VERSION),
+			V18, strlen(V18),
+			strnlen(driver_version, MLAN_MAX_VER_STR_LEN - 1) -
+				strlen(INTF_CARDTYPE) - strlen(KERN_VERSION));
 	}
 #endif
+
+	if (check_usb_ext_table_info(
+		    device_name, &card_type,
+		    woal_cpu_to_le16(cardp_usb->udev->descriptor.idProduct)) ==
+	    MLAN_STATUS_SUCCESS) {
+		moal_memcpy_ext(NULL, driver_version, device_name,
+				strlen(device_name), strlen(driver_version));
+
+		if (card_type == CARD_TYPE_USB8801) {
+			moal_memcpy_ext(NULL,
+					driver_version + strlen(INTF_CARDTYPE) +
+						strlen(KERN_VERSION),
+					V14, strlen(V14),
+					strlen(driver_version) -
+						strlen(INTF_CARDTYPE) -
+						strlen(KERN_VERSION));
+		} else if (card_type == CARD_TYPE_USB8897) {
+			moal_memcpy_ext(NULL,
+					driver_version + strlen(INTF_CARDTYPE) +
+						strlen(KERN_VERSION),
+					V15, strlen(V15),
+					strlen(driver_version) -
+						strlen(INTF_CARDTYPE) -
+						strlen(KERN_VERSION));
+		} else if (card_type == CARD_TYPE_USB8997 ||
+			   card_type == CARD_TYPE_USB8978) {
+			moal_memcpy_ext(NULL,
+					driver_version + strlen(INTF_CARDTYPE) +
+						strlen(KERN_VERSION),
+					V16, strlen(V16),
+					strlen(driver_version) -
+						strlen(INTF_CARDTYPE) -
+						strlen(KERN_VERSION));
+		} else if (card_type == CARD_TYPE_USB9098 ||
+			   card_type == CARD_TYPE_USB9097) {
+			moal_memcpy_ext(NULL,
+					driver_version + strlen(INTF_CARDTYPE) +
+						strlen(KERN_VERSION),
+					V17, strlen(V17),
+					strlen(driver_version) -
+						strlen(INTF_CARDTYPE) -
+						strlen(KERN_VERSION));
+		} else if (card_type == CARD_TYPE_USBIW624 ||
+			   card_type == CARD_TYPE_USBIW610) {
+			moal_memcpy_ext(NULL,
+					driver_version + strlen(INTF_CARDTYPE) +
+						strlen(KERN_VERSION),
+					V18, strlen(V18),
+					strlen(driver_version) -
+						strlen(INTF_CARDTYPE) -
+						strlen(KERN_VERSION));
+		}
+	}
 	return card_type;
 }
 
@@ -847,6 +911,7 @@ static int woal_usb_probe(struct usb_interface *intf,
 	int i;
 	struct usb_card_rec *usb_cardp = NULL;
 	t_u16 card_type = 0;
+	struct usb_device_id *usb_table = woal_usb_table;
 
 	ENTER();
 
@@ -863,12 +928,17 @@ static int woal_usb_probe(struct usb_interface *intf,
 		return -ENOMEM;
 	}
 
+	if (woal_usb_table_ext != NULL) {
+		PRINTM(MINFO, "Use usb table with customer vid pid\n");
+		usb_table = woal_usb_table_ext;
+	}
+
 	/* Check probe is for our device */
-	for (i = 0; woal_usb_table[i].idVendor; i++) {
+	for (i = 0; usb_table[i].idVendor; i++) {
 		if (woal_cpu_to_le16(udev->descriptor.idVendor) ==
-			    (__force __le16)woal_usb_table[i].idVendor &&
+			    (__force __le16)usb_table[i].idVendor &&
 		    woal_cpu_to_le16(udev->descriptor.idProduct) ==
-			    (__force __le16)woal_usb_table[i].idProduct) {
+			    (__force __le16)usb_table[i].idProduct) {
 			PRINTM(MMSG, "VID/PID = %X/%X, Boot2 version = %X\n",
 			       woal_cpu_to_le16(udev->descriptor.idVendor),
 			       woal_cpu_to_le16(udev->descriptor.idProduct),
@@ -930,6 +1000,16 @@ static int woal_usb_probe(struct usb_interface *intf,
 
 				usb_cardp->boot_state = USB_FW_READY;
 				break;
+			default:
+				if (check_usb_ext_table_info(
+					    NULL, NULL,
+					    woal_cpu_to_le16(
+						    udev->descriptor
+							    .idProduct)) ==
+				    MLAN_STATUS_SUCCESS)
+					usb_cardp->boot_state = USB_FW_READY;
+
+				break;
 			}
 			/*To do, get card type*/
 			/*			if
@@ -944,7 +1024,7 @@ static int woal_usb_probe(struct usb_interface *intf,
 		}
 	}
 
-	if (woal_usb_table[i].idVendor) {
+	if (usb_table[i].idVendor) {
 		usb_cardp->udev = udev;
 		iface_desc = intf->cur_altsetting;
 		usb_cardp->intf = intf;
@@ -1828,6 +1908,10 @@ mlan_status woal_usb_bus_register(void)
 	if (skip_fwdnld) {
 		woal_usb_driver.id_table = woal_usb_table_skip_fwdnld;
 	}
+
+	if (woal_usb_table_ext != NULL) {
+		woal_usb_driver.id_table = woal_usb_table_ext;
+	}
 	/*
 	 * API registers the NXP USB driver
 	 * to the USB system
@@ -1848,8 +1932,15 @@ mlan_status woal_usb_bus_register(void)
 void woal_usb_bus_unregister(void)
 {
 	ENTER();
+
 	/* API unregisters the driver from USB subsystem */
 	usb_deregister(&woal_usb_driver);
+
+	if (woal_usb_table_ext != NULL) {
+		kfree(woal_usb_table_ext);
+		woal_usb_table_ext = NULL;
+	}
+
 	LEAVE();
 	return;
 }
@@ -2075,6 +2166,9 @@ static mlan_status woal_usb_get_fw_name(moal_handle *handle)
 	t_u32 boot_mode = 0;
 #endif
 	struct usb_card_rec *cardp = (struct usb_card_rec *)handle->card;
+#ifdef USBIW610
+	char *ext;
+#endif
 #if defined(USB9098)
 	moal_handle *ref_handle = NULL;
 #endif
@@ -2231,14 +2325,12 @@ static mlan_status woal_usb_get_fw_name(moal_handle *handle)
 			USBIW610_DEFAULT_WLAN_FW_NAME, FW_NAMW_MAX_LEN);
 		if (boot_mode != 0x03) {
 			/* remove extension .se */
-			if (strstr(handle->card_info->fw_name, ".se"))
-				memset(strstr(handle->card_info->fw_name,
-					      ".se"),
-				       '\0', sizeof(".se"));
-			if (strstr(handle->card_info->fw_name_wlan, ".se"))
-				memset(strstr(handle->card_info->fw_name_wlan,
-					      ".se"),
-				       '\0', sizeof(".se"));
+			ext = strstr(handle->card_info->fw_name, ".se");
+			if (ext)
+				*ext = '\0';
+			ext = strstr(handle->card_info->fw_name_wlan, ".se");
+			if (ext)
+				*ext = '\0';
 		}
 	}
 #endif
@@ -2248,6 +2340,478 @@ done:
 	       handle->card_info->fw_name_wlan);
 	LEAVE();
 	return ret;
+}
+
+/**
+ *  @brief Parse a single line from USB configuration file
+ *
+ *  @param line               Input line to parse
+ *  @param entry              Array of USB configuration entries to populate
+ *  @param current_entry_idx  Pointer to current entry index
+ *  @return                   0 on success, negative error code on failure
+ */
+static int parse_config_line(char *line, usb_config_entry_t *entry,
+			     t_u16 *current_entry_idx)
+{
+	char *token, *value;
+	static usb_config_entry_t *current_entry = NULL;
+
+	/* Remove whitespace and newlines */
+	line = strim(line);
+
+	/* Skip empty lines and comments */
+	if (strlen(line) == 0 || line[0] == '#')
+		return 0;
+
+	/* Check for device section start (e.g., "USBIW610={") */
+	if (strstr(line, "={")) {
+		token = strsep(&line, "=");
+		if (token) {
+			if ((*current_entry_idx) >= MAX_CONFIG_ENTRIES) {
+				PRINTM(MERROR, "Only support max %d entries\n",
+				       MAX_CONFIG_ENTRIES);
+				return -EINVAL;
+			}
+
+			current_entry = &entry[*current_entry_idx];
+			strncpy(current_entry->device_name, strim(token),
+				MAX_DEVICE_NAME - 1);
+			current_entry->device_name[MAX_DEVICE_NAME - 1] = '\0';
+
+			if (check_device_name_info(current_entry->device_name,
+						   NULL) !=
+			    MLAN_STATUS_SUCCESS) {
+				PRINTM(MERROR, "Not support devices\n");
+				return -EINVAL;
+			}
+
+			current_entry->vid_pid_count = 0; /* Initialize count */
+			(*current_entry_idx)++;
+
+			return 0;
+		}
+	}
+
+	/* Check for section end */
+	if (strstr(line, "}")) {
+		current_entry = NULL;
+		return 0;
+	}
+
+	/* Parse vid_pid entries within a section */
+	if (current_entry && strchr(line, '=')) {
+		token = strsep(&line, "=");
+		value = line;
+
+		if (!token || !value)
+			return -EINVAL;
+
+		token = strim(token);
+		value = strim(value);
+
+		/* Only process vid_pid_X entries */
+		if (strncmp(token, "vid_pid_", 8) == 0) {
+			char *vid_str, *pid_str;
+			int vid, pid;
+			int pair_idx;
+
+			/* Extract pair index from token (e.g., "vid_pid_0" ->
+			 * 0) */
+			if (kstrtoint(token + 8, 10, &pair_idx) != 0)
+				return -EINVAL;
+
+			if (pair_idx >= MAX_VID_PID_PAIRS || pair_idx < 0) {
+				PRINTM(MERROR,
+				       "VID/PID pair index %d exceeds maximum %d\n",
+				       pair_idx, MAX_VID_PID_PAIRS - 1);
+				return -EINVAL;
+			}
+
+			/* Parse VID:PID format (e.g., "0x471:0x215") */
+			vid_str = strsep(&value, ":");
+			pid_str = value;
+
+			if (!vid_str || !pid_str) {
+				PRINTM(MERROR, "Invalid VID:PID format: %s\n",
+				       line);
+				return -EINVAL;
+			}
+
+			if (kstrtoint(vid_str, 0, &vid) != 0 ||
+			    kstrtoint(pid_str, 0, &pid) != 0) {
+				PRINTM(MERROR,
+				       "Failed to parse VID:PID values: %s:%s\n",
+				       vid_str, pid_str);
+				return -EINVAL;
+			}
+
+			if (vid == 0 || pid == 0) {
+				PRINTM(MERROR,
+				       "Invalid VID or PID value, vid is 0x%04x, pid is 0x%04x\n",
+				       vid, pid);
+				return -EINVAL;
+			}
+
+			current_entry->vid_pid_pairs[pair_idx].vid = (__u16)vid;
+			current_entry->vid_pid_pairs[pair_idx].pid = (__u16)pid;
+
+			/* Update the count to track the highest index + 1 */
+			if (pair_idx >= current_entry->vid_pid_count) {
+				current_entry->vid_pid_count = pair_idx + 1;
+			}
+
+			PRINTM(MINFO,
+			       "Parsed VID/PID[%d]: 0x%04x:0x%04x for device %s\n",
+			       pair_idx, vid, pid, current_entry->device_name);
+		}
+	}
+
+	return 0;
+}
+
+/**
+ *  @brief This function read a line in module parameter file
+ *
+ *  @param data     A pointer to module parameter data buffer
+ *  @param size     module parameter file size
+ *  @param line_pos A pointer to offset of current line
+ *  @return         MLAN_STATUS_SUCCESS or MLAN_STATUS_FAILURE
+ */
+static t_size parse_cfg_get_line(t_u8 *data, t_size size, t_u8 *line_pos)
+{
+	t_u8 *src, *dest;
+	static t_s32 pos;
+
+	ENTER();
+
+	if ((pos >= (t_s32)size) || (data == NULL) ||
+	    (line_pos == NULL)) { /* reach the end */
+		pos = 0; /* Reset position for rfkill */
+		LEAVE();
+		return -1;
+	}
+	memset(line_pos, 0, MAX_LINE_LEN);
+	src = data + pos;
+	dest = line_pos;
+
+	while (pos < (t_s32)size && *src != '\x0A' && *src != '\0') {
+		if ((dest - line_pos) >= (MAX_LINE_LEN - 1)) {
+			PRINTM(MERROR,
+			       "error: input data size exceeds the dest buff limit\n");
+			LEAVE();
+			return -1;
+		}
+		if (*src != ' ' && *src != '\t') /* parse space */
+			*dest++ = *src++;
+		else
+			src++;
+		pos++;
+	}
+	/* parse new line */
+	pos++;
+	*dest = '\0';
+	LEAVE();
+	return strlen(line_pos);
+}
+
+/**
+ *  @brief This function parses a USB configuration file to extract device
+ * entries and VID/PID pairs
+ *
+ *  @param config_path  A pointer to the configuration file path
+ *  @param config       A pointer to usb_config_t structure to store parsed
+ * configuration
+ *  @return             0 on success, negative error code on failure
+ */
+static int parse_usb_config_file(const char *config_path, usb_config_t *config)
+{
+	t_u8 line[MAX_LINE_LEN], *data = NULL;
+	t_u32 size;
+	int ret = 0;
+	t_u16 entry_idx = 0;
+	const struct firmware *config_data = NULL;
+
+	if (!config_path || !config) {
+		PRINTM(MERROR, "Invalid parameters\n");
+		return -EINVAL;
+	}
+
+	memset(config, 0, sizeof(usb_config_t));
+
+	/* Load the configuration file */
+	ret = request_firmware(&config_data, config_path, NULL);
+	if (ret < 0 || (config_data == NULL)) {
+		PRINTM(MERROR, "Request config data: %s failed, error: %d\n",
+		       config_path, ret);
+		return ret;
+	}
+	size = (t_u32)config_data->size;
+	// Casting is done to read and parse the data
+	// coverity[misra_c_2012_rule_11_8_violation:SUPPRESS]
+	data = (t_u8 *)config_data->data;
+
+	PRINTM(MINFO, "Parsing USB config file: %s\n", config_path);
+
+	/* Read file line by line */
+	while ((int)parse_cfg_get_line(data, size, line) != -1) {
+		/* Parse the line */
+		ret = parse_config_line(line, config->entries, &entry_idx);
+		if (ret < 0) {
+			PRINTM(MERROR, "Error parsing line: %s\n", line);
+			break;
+		}
+	}
+
+	if (ret >= 0) {
+		int i, j;
+		config->total_entries = entry_idx;
+
+		/* Count total valid VID/PID pairs */
+
+		config->total_vid_pid_pairs = 0;
+		for (i = 0; i < config->total_entries; i++) {
+			for (j = 0; j < config->entries[i].vid_pid_count; j++) {
+				if (config->entries[i].vid_pid_pairs[j].vid !=
+					    0 &&
+				    config->entries[i].vid_pid_pairs[j].pid !=
+					    0) {
+					config->total_vid_pid_pairs++;
+				}
+			}
+
+			PRINTM(MINFO, "Device %s: found %d VID/PID pairs\n",
+			       config->entries[i].device_name,
+			       config->entries[i].vid_pid_count);
+		}
+
+		PRINTM(MINFO,
+		       "Successfully parsed %d device entries with %d total VID/PID pairs\n",
+		       config->total_entries, config->total_vid_pid_pairs);
+		ret = 0;
+	}
+
+	if (config_data) {
+		release_firmware(config_data);
+		(void)parse_cfg_get_line(NULL, 0, NULL);
+	}
+
+	return ret;
+}
+
+/**
+ * extend_usb_table - Extend the USB device table with additional VID/PID pairs
+ * @table: Original USB device ID table
+ * @table_size: Size of the original table
+ * @config: USB configuration containing additional device entries
+ *
+ * This function creates an extended USB device table by combining the original
+ * table with additional VID/PID pairs from the configuration. It allocates a
+ * new table, copies the original entries, adds the new entries from config,
+ * and sets up the extended table for use.
+ *
+ * Return: 0 on success, negative error code on failure
+ *         -EINVAL for invalid parameters or too many VID/PID pairs
+ *         -ENOMEM for memory allocation failure
+ */
+static int extend_usb_table(struct usb_device_id *table, t_u32 table_size,
+			    usb_config_t *config)
+{
+	struct usb_device_id *new_table;
+	t_u32 new_size;
+	t_u32 i, j, new_idx;
+
+	if (!table || !table_size || !config) {
+		PRINTM(MERROR, "Invalid parameters for extending USB table\n");
+		return -EINVAL;
+	}
+
+	if (config->total_vid_pid_pairs >
+	    ((MAX_CONFIG_ENTRIES) * (MAX_VID_PID_PAIRS))) {
+		PRINTM(MERROR, "Only support max %d pairs of vid and pid\n",
+		       ((MAX_CONFIG_ENTRIES) * (MAX_VID_PID_PAIRS)));
+		return -EINVAL;
+	}
+	/* Calculate new table size */
+	new_size = table_size + config->total_vid_pid_pairs + 1; /* +1 for
+								    terminating
+								    entry */
+
+	PRINTM(MINFO,
+	       "Extending USB table: original=%d, adding=%d, new_total=%d\n",
+	       table_size, config->total_vid_pid_pairs, new_size);
+
+	/* Allocate new table */
+	new_table = kmalloc_array(new_size, sizeof(struct usb_device_id),
+				  GFP_KERNEL);
+	if (!new_table) {
+		PRINTM(MERROR,
+		       "Failed to allocate extended USB table (%zu bytes)\n",
+		       new_size * sizeof(struct usb_device_id));
+		return -ENOMEM;
+	}
+
+	/* Copy original entries */
+	memcpy(new_table, table, table_size * sizeof(struct usb_device_id));
+
+	/* Add new entries from config */
+	new_idx = table_size;
+	for (i = 0; i < config->total_entries; i++) {
+		usb_config_entry_t *entry = &config->entries[i];
+
+		for (j = 0; j < entry->vid_pid_count; j++) {
+			if ((new_idx < new_size) &&
+			    (entry->vid_pid_pairs[j].vid != 0) &&
+			    (entry->vid_pid_pairs[j].pid != 0)) {
+				struct usb_device_id *usb_entry =
+					&new_table[new_idx];
+
+				memset(usb_entry, 0,
+				       sizeof(struct usb_device_id));
+				usb_entry->match_flags =
+					USB_DEVICE_ID_MATCH_DEVICE;
+				usb_entry->idVendor =
+					entry->vid_pid_pairs[j].vid;
+				usb_entry->idProduct =
+					entry->vid_pid_pairs[j].pid;
+				usb_entry->driver_info =
+					(unsigned long)"NXP WLAN USB Adapter";
+
+				PRINTM(MINFO,
+				       "Added USB device[%d]: VID=0x%04x, PID=0x%04x (%s)\n",
+				       new_idx, entry->vid_pid_pairs[j].vid,
+				       entry->vid_pid_pairs[j].pid,
+				       entry->device_name);
+
+				new_idx++;
+			}
+		}
+	}
+
+	/* Add terminating entry */
+	memset(&new_table[new_idx], 0, sizeof(struct usb_device_id));
+
+	/* Update table pointer and size */
+	woal_usb_table_ext = new_table;
+
+	PRINTM(MINFO, "USB table successfully extended to %d entries\n",
+	       new_size);
+
+	return 0;
+}
+
+/**
+ * woal_usb_init_extended_table - Initialize extended USB device table
+ * @config_path: Path to the USB configuration file
+ *
+ * This function extends the existing USB device table with additional
+ * VID/PID pairs from a configuration file. It first counts the original
+ * table size, parses the configuration file for new USB devices, and
+ * then extends the USB table with the additional entries.
+ *
+ * Return: 0 on success, negative error code on failure
+ */
+int woal_usb_init_extended_table(const char *config_path)
+{
+	usb_config_t *config = &customer_usb_config;
+	int ret;
+	t_u32 original_size = 0;
+
+	/* Count original table size */
+	struct usb_device_id *entry = woal_usb_table;
+	while (entry->idVendor != 0 || entry->idProduct != 0) {
+		original_size++;
+		entry++;
+	}
+
+	/* Parse configuration file */
+	ret = parse_usb_config_file(config_path, config);
+	if (ret < 0) {
+		PRINTM(MERROR, "Failed to parse USB config file: %d\n", ret);
+		return ret;
+	}
+
+	if (config->total_vid_pid_pairs == 0) {
+		PRINTM(MERROR, "No additional USB devices found in config\n");
+		return 0;
+	}
+
+	ret = extend_usb_table(woal_usb_table, original_size, config);
+	if (ret < 0) {
+		PRINTM(MERROR, "Failed to extend USB table: %d\n", ret);
+		return ret;
+	}
+
+	PRINTM(MINFO,
+	       "Successfully extended USB table with %d additional devices\n",
+	       config->total_vid_pid_pairs);
+
+	return 0;
+}
+
+/**
+ * check_usb_ext_table_info - Check USB extended table for device information
+ * @device_name: Buffer to store the device name (can be NULL)
+ * @card_type: Pointer to store the card type (can be NULL)
+ * @pid: Product ID to search for
+ *
+ * This function searches through the customer USB configuration table
+ * to find a matching product ID. If found, it retrieves the associated
+ * device name and card type information.
+ *
+ * Return: MLAN_STATUS_SUCCESS if device found, MLAN_STATUS_FAILURE otherwise
+ */
+mlan_status check_usb_ext_table_info(char *device_name, t_u16 *card_type,
+				     t_u16 pid)
+{
+	t_u16 i, j;
+	t_u16 get_card_type = 0;
+
+	if (customer_usb_config.total_entries != 0) {
+		for (j = 0; j < customer_usb_config.total_entries; j++) {
+			if (check_device_name_info(
+				    customer_usb_config.entries[j].device_name,
+				    &get_card_type) == MLAN_STATUS_SUCCESS) {
+				for (i = 0; customer_usb_config.entries[j]
+						    .vid_pid_count &&
+					    i < customer_usb_config.entries[j]
+							    .vid_pid_count;
+				     i++) {
+					if (pid ==
+					    (__force __le16)(
+						    customer_usb_config
+							    .entries[j]
+							    .vid_pid_pairs[i]
+							    .pid)) {
+						if (device_name != NULL) {
+							moal_memcpy_ext(
+								NULL,
+								device_name,
+								customer_usb_config
+									.entries[j]
+									.device_name,
+								strlen(customer_usb_config
+									       .entries[j]
+									       .device_name),
+								MAX_DEVICE_NAME -
+									1);
+							device_name
+								[MAX_DEVICE_NAME -
+								 1] = '\0';
+						}
+
+						if (card_type != NULL) {
+							*card_type =
+								get_card_type;
+						}
+
+						return MLAN_STATUS_SUCCESS;
+					}
+				}
+			}
+		}
+	}
+
+	return MLAN_STATUS_FAILURE;
 }
 
 static moal_if_ops usb_ops = {

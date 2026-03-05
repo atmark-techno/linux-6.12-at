@@ -639,6 +639,103 @@ enum ATTR_FW_RELOAD {
 
 void woal_cfg80211_driver_hang_event(moal_private *priv, t_u8 reload_mode);
 
+enum ATTR_USABLE_CHANNEL {
+	ATTR_USABLE_CHANNEL_INVALID = 0,
+	ATTR_USABLE_CHANNEL_BAND = 1,
+	ATTR_USABLE_CHANNEL_IFACE_MODE = 2,
+	ATTR_USABLE_CHANNEL_FILTER = 3,
+	ATTR_USABLE_CHANNEL_MAX_SIZE = 4,
+	ATTR_USABLE_CHANNEL_SIZE = 5,
+	ATTR_USABLE_CHANNEL_LIST = 6,
+	ATTR_USABLE_CHANNEL_MAX,
+};
+
+/*
+ * enum wlan_mac_band - Band information corresponding to the WLAN MAC.
+ */
+typedef enum {
+	/* WLAN MAC Operates in 2.4 GHz Band */
+	WLAN_MAC_2_4_BAND = 1 << 0,
+	/* WLAN MAC Operates in 5 GHz Band */
+	WLAN_MAC_5_0_BAND = 1 << 1,
+	/* WLAN MAC Operates in 6 GHz Band */
+	WLAN_MAC_6_0_BAND = 1 << 2,
+	/* WLAN MAC Operates in 60 GHz Band */
+	WLAN_MAC_60_0_BAND = 1 << 3,
+} wlan_mac_band;
+
+typedef enum {
+	/* Interface operation mode is client. */
+	IFACE_MODE_STA = 1 << 0,
+	/* Interface operation mode is Hotspot. */
+	IFACE_MODE_SOFTAP = 1 << 1,
+	/* Interface operation mode is Ad-Hoc network. */
+	IFACE_MODE_IBSS = 1 << 2,
+	/* Interface operation mode is Wifi Direct Client. */
+	IFACE_MODE_P2P_CLIENT = 1 << 3,
+	/* Interface operation mode is Wifi Direct Group Owner. */
+	IFACE_MODE_P2P_GO = 1 << 4,
+	/* Interface operation mode is Aware. */
+	IFACE_MODE_NAN = 1 << 5,
+	/* Interface operation mode is Mesh network. */
+	IFACE_MODE_MESH = 1 << 6,
+	/* Interface operation mode is Tunneled Direct Link Setup. */
+	IFACE_MODE_TDLS = 1 << 7,
+} wifi_interface_mode;
+
+typedef enum {
+	/* Filter Wifi channels that should be avoided due to cellular coex
+	 * restrictions. Some Wifi channels can have extreme interference
+	 * from/to cellular due to short frequency separation with neighboring
+	 * cellular channels or when there is harmonic and intermodulation
+	 * interference. Channels which only have some performance degradation
+	 * (e.g. power back off is sufficient to deal with coexistence issue)
+	 * can be included and should not be filtered out.
+	 */
+	WIFI_USABLE_CHANNEL_FILTER_CELLULAR_COEXISTENCE = 1 << 0,
+	/* Filter channels due to concurrency state.
+	 * Examples:
+	 * - 5GHz SAP operation may be supported in standalone mode, but if
+	 *  there is STA connection on 5GHz DFS channel, none of the 5GHz
+	 *  channels are usable for SAP if device does not support DFS SAP mode.
+	 * - P2P GO may not be supported on indoor channels in EU during
+	 *  standalone mode but if there is a STA connection on indoor channel,
+	 *  P2P GO may be supported by some vendors on the same STA channel.
+	 */
+	WIFI_USABLE_CHANNEL_FILTER_CONCURRENCY = 1 << 1,
+	/* This Filter queries Wifi channels and bands that are supported for
+	 * NAN3.1 Instant communication mode. This filter should only be applied
+	 * to NAN interface. If 5G is supported default discovery channel 149/44
+	 * is considered, If 5G is not supported then channel 6 has to be
+	 * considered. Based on regulatory domain if channel 149 and 44 are
+	 * restricted, channel 6 should be considered for instant communication
+	 * channel
+	 */
+	WIFI_USABLE_CHANNEL_FILTER_NAN_INSTANT_MODE = 1 << 2,
+} wifi_usable_channel_filter;
+
+/*
+ * wifi_usable_channel specifies a channel frequency, bandwidth, and bitmask
+ * of modes allowed on the channel.
+ */
+typedef struct {
+	/* Channel frequency in MHz */
+	int freq;
+	/* Channel operating width (20, 40, 80, 160, 320 etc.) */
+	wifi_channel_width_t width;
+	/* BIT MASK of BIT(WIFI_INTERFACE_*) represented by
+	 * |wifi_interface_mode| Bitmask does not represent concurrency.
+	 * Examples:
+	 * - If a channel is usable only for STA, then only the
+	 * WIFI_INTERFACE_STA bit would be set for that channel.
+	 * - If 5GHz SAP is not allowed, then none of the 5GHz channels will
+	 * have WIFI_INTERFACE_SOFTAP bit set. Note: TDLS bit is set only if
+	 * there is a STA connection. TDLS bit is set on non-STA channels only
+	 * if TDLS off channel is supported.
+	 */
+	u32 iface_mode_mask;
+} wifi_usable_channel;
+
 /**vendor event*/
 enum vendor_event {
 	event_hang = 0,
@@ -749,10 +846,6 @@ enum vendor_sub_command {
 	sub_cmd_get_drv_mem_dump = 0x1407,
 	sub_cmd_start_packet_fate_monitor = 0x1408,
 	sub_cmd_rssi_monitor = 0x1500,
-	/*Sub-command for wifi hal*/
-	sub_cmd_get_roaming_capability = 0x1700,
-	sub_cmd_fw_roaming_enable = 0x1701,
-	sub_cmd_fw_roaming_config = 0x1702,
 	subcmd_cfr_request = 0x1900,
 	subcmd_cfr_cancel,
 	subcmd_get_csi_dump_path,
@@ -765,6 +858,10 @@ enum vendor_sub_command {
 	subcmd_set_get_tx_ampdu_prot_mode = 0x1924,
 	subcmd_twt_setup = 0x1925,
 	subcmd_twt_teardown = 0x1926,
+	subcmd_btwt_ap_config_set = 0x1927,
+	subcmd_btwt_ap_config_get = 0x1928,
+	// Get Usable channel list
+	subcmd_get_usable_channels = 0x1950,
 	sub_cmd_max,
 };
 
@@ -820,51 +917,6 @@ enum mrvl_wlan_vendor_attr_roam_auth {
 	MRVL_WLAN_VENDOR_ATTR_ROAM_AUTH_AFTER_LAST,
 	MRVL_WLAN_VENDOR_ATTR_ROAM_AUTH_MAX =
 		MRVL_WLAN_VENDOR_ATTR_ROAM_AUTH_AFTER_LAST - 1
-};
-
-/** WiFi roaming capabilities structure */
-typedef struct {
-	/** max blacklist size */
-	u32 max_blacklist_size;
-	/** max whitelist size */
-	u32 max_whitelist_size;
-} wifi_roaming_capabilities;
-
-/** WiFi BSSID params structure */
-typedef struct {
-	/** Num of BSSID */
-	u32 num_bssid;
-	/** List of AP mac address */
-	t_u8 mac_addr[MAX_AP_LIST][MLAN_MAC_ADDR_LENGTH];
-} wifi_bssid_params;
-
-/** SSID structure */
-typedef struct {
-	/** Length */
-	u32 length;
-	/** SSID */
-	char ssid[MLAN_MAX_SSID_LENGTH];
-} ssid_t;
-
-/** WiFi SSID params structure */
-typedef struct {
-	/** No of SSID */
-	u32 num_ssid;
-	/** Whitelist SSID */
-	ssid_t whitelist_ssid[MAX_SSID_NUM];
-} wifi_ssid_params;
-
-/*Attribute for wifi hal*/
-enum mrvl_wlan_vendor_attr_fw_roaming {
-	MRVL_WLAN_VENDOR_ATTR_FW_ROAMING_INVALID = 0,
-	MRVL_WLAN_VENDOR_ATTR_FW_ROAMING_CAPA,
-	MRVL_WLAN_VENDOR_ATTR_FW_ROAMING_CONTROL,
-	MRVL_WLAN_VENDOR_ATTR_FW_ROAMING_CONFIG_BSSID,
-	MRVL_WLAN_VENDOR_ATTR_FW_ROAMING_CONFIG_SSID,
-	/* keep last */
-	MRVL_WLAN_VENDOR_ATTR_FW_ROAMING_AFTER_LAST,
-	MRVL_WLAN_VENDOR_ATTR_FW_ROAMING_MAX =
-		MRVL_WLAN_VENDOR_ATTR_FW_ROAMING_AFTER_LAST - 1
 };
 
 enum attr_rtt {
