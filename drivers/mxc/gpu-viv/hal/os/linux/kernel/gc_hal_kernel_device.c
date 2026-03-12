@@ -1589,8 +1589,12 @@ _DebugfsCleanup(IN gckGALDEVICE Device)
     }
 #else
     /* TODO. */
-    struct device *dev = (struct device *)Device->devices[0]->dev;
+    struct device *dev;
 
+    if (!Device->devices[0] || !Device->devices[0]->dev)
+        return;
+
+    dev = (struct device *)Device->devices[0]->dev;
     sysfs_remove_groups(&dev->kobj, Info_groups);
 #endif
 }
@@ -2726,6 +2730,8 @@ gckGALDEVICE_Destroy(gckGALDEVICE gal_device)
 
         gcmkASSERT(kernel);
 
+        _DebugfsCleanup(gal_device);
+
         /* Free all the local memories. */
         for (i = 0; i < gcdLOCAL_MEMORY_COUNT; i++) {
             if (gal_device->externalPhysName[i]) {
@@ -2928,8 +2934,6 @@ gckGALDEVICE_Destroy(gckGALDEVICE gal_device)
             gcmkVERIFY_OK(gckOS_Destroy(gal_device->os));
             gal_device->os = gcvNULL;
         }
-
-        _DebugfsCleanup(gal_device);
 
         /* Free the device. */
         kfree(gal_device);
