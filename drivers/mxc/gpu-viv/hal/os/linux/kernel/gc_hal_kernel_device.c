@@ -2831,7 +2831,7 @@ gckGALDEVICE_Destroy(gckGALDEVICE gal_device)
 
             gcmkVERIFY_OK(gckDEVICE_Destroy(device->os, device));
 
-            device = gcvNULL;
+            gal_device->devices[devIndex] = gcvNULL;
         }
 
         for (i = 0; i < gcvSRAM_EXT_COUNT; i++) {
