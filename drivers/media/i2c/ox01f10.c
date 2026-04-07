@@ -30,6 +30,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/units.h>
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
@@ -1634,6 +1635,9 @@ static struct of_device_id ox01f10_of_match[] = {
 	{},
 };
 
+#define OX01F10_DEFAULT_LINK_FREQ	(448 * HZ_PER_MHZ)
+static const s64 ox01f10_link_freq_menu_items[] = { OX01F10_DEFAULT_LINK_FREQ };
+
 /**
  * @brief	Initialize control info
  * @param[in]	*priv	 : ox01f10 driver info
@@ -1671,6 +1675,12 @@ static int ox01f10_ctrls_init(struct ox01f10 *priv)
 			i, ox01f10_configs[i].name);
 		priv->ctrls[i] = ctrl;
 	}
+
+	ctrl = v4l2_ctrl_new_int_menu(&priv->ctrl_handler, NULL, V4L2_CID_LINK_FREQ,
+				      ARRAY_SIZE(ox01f10_link_freq_menu_items) - 1,
+				      0, ox01f10_link_freq_menu_items);
+	if (ctrl)
+		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	priv->numctrls = numctrls;
 	priv->subdev.ctrl_handler = &priv->ctrl_handler;
