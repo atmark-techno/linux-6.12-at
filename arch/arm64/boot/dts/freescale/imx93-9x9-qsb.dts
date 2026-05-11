@@ -539,6 +539,7 @@
 	bus-width = <8>;
 	fsl,tuning-step = <1>;
 	non-removable;
+	fsl,tuning-step = <1>;
 	status = "okay";
 };
 
@@ -553,6 +554,7 @@
 	bus-width = <4>;
 	fsl,tuning-step = <1>;
 	no-mmc;
+	fsl,tuning-step = <1>;
 	status = "okay";
 };
 
