@@ -1451,8 +1451,8 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 	}
 
 	/* check if the controller work in combination or individual mode */
-	f->individual_mode = of_property_read_bool(np,
-						   "nxp,fspi-individual-mode");
+	f->individual_mode = fwnode_property_read_bool(fwnode,
+						       "nxp,fspi-individual-mode");
 
 	ret = devm_mutex_init(dev, &f->lock);
 	if (ret)
