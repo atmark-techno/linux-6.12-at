@@ -46,7 +46,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_sim7672_reset>;
 		pwrkey-gpios = <&gpio4 19 GPIO_ACTIVE_HIGH>;
-		usbboot-gpios = <&pca9534 4 GPIO_ACTIVE_HIGH>;
+		usbboot-gpios = <&pca9534 4 GPIO_ACTIVE_LOW>;
 		status-gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;
 		dtr-gpios = <&gpio4 20 GPIO_ACTIVE_HIGH>;
 		vbus-gpios = <&gpio4 17 GPIO_ACTIVE_HIGH>;
