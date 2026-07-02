@@ -51,6 +51,7 @@ static u32 gpc_wake_irqs[IMR_NUM];
 static u32 gpc_saved_imrs[IMR_NUM];
 static u32 gpc_mf_irqs[IMR_NUM];
 static u32 gpc_mf_request_on[IMR_NUM];
+static bool gpc_mf_mix_always_on;
 static DEFINE_SPINLOCK(gpc_lock);
 
 void imx_gpc_add_m4_wake_up_irq(u32 hwirq, bool enable)
@@ -167,7 +168,8 @@ void imx_gpc_pre_suspend(bool arm_power_off)
 
 	/* power down the mega-fast power domain */
 	if ((cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6ull() ||
-	     cpu_is_imx6ulz() || cpu_is_imx6sll()) && arm_power_off)
+	     cpu_is_imx6ulz() || cpu_is_imx6sll()) && arm_power_off &&
+	    !gpc_mf_mix_always_on)
 		imx_gpc_mf_mix_off();
 
 	/* Tell GPC to power off ARM core when suspend */
@@ -423,6 +425,8 @@ static int __init imx_gpc_init(struct device_node *node,
 		if (!(gpc_mf_irqs[0] | gpc_mf_irqs[1] |
 			gpc_mf_irqs[2] | gpc_mf_irqs[3]))
 			pr_info("No wakeup source in Mega/Fast domain found!\n");
+		gpc_mf_mix_always_on =
+			of_property_read_bool(node, "fsl,mf-mix-always-on");
 	}
 
 	/* clear the L2_PGE bit on i.MX6SLL */
