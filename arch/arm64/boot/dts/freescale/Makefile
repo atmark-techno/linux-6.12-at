@@ -426,10 +426,11 @@ dtb-$(CONFIG_ARCH_MXC) += imx8ulp-evk.dtb imx8ulp-evk-lpspi-slave.dtb \
 			  imx8ulp-evk-tpm.dtb imx8ulp-9x9-evk-tpm.dtb
 
 # DTBO need explicit -@ if symbols are used in further dts
+# The -all target verifies the dtbo are sensible by applying the overlay at the end,
+# so -customize needs to be last to apply on top of -evaboard/a9e dtbos
 DTC_FLAGS_armadillo_iotg_a9e := -@
 DTC_FLAGS_armadillo_900-evaboard := -@
 armadillo_900-all-dtbs = armadillo_900.dtb \
-			 armadillo_900-customize.dtbo \
 			 armadillo_900-evaboard-con9-ox01f10.dtbo \
 			 armadillo_900-evaboard-con10-waveshare4-3-inch-dsi.dtbo \
 			 armadillo_900-evaboard.dtbo \
@@ -444,7 +445,8 @@ armadillo_900-all-dtbs = armadillo_900.dtb \
 			 armadillo_iotg_a9e-nousb.dtbo \
 			 armadillo_iotg_a9e-sim7672.dtbo \
 			 armadillo_iotg_a9e-stdwn-ind-con10-pin26.dtbo \
-			 armadillo_iotg_a9e-stdwn-ind-do1.dtbo
+			 armadillo_iotg_a9e-stdwn-ind-do1.dtbo \
+			 armadillo_900-customize.dtbo
 dtb-$(CONFIG_ARCH_MXC) += armadillo_900-all.dtb
 
 dtb-$(CONFIG_ARCH_MXC) += imx8dxl-evk.dtb \
